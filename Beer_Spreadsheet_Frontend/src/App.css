@@ -456,9 +456,25 @@ button:disabled {
   gap: 4px;
 }
 
+.rating-score-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rating-score-row input {
+  width: calc(3ch + 20px);
+  min-width: 0;
+  flex-shrink: 0;
+  text-align: center;
+  padding: 6px 8px;
+}
+
 .rating-word-scale {
   position: relative;
   display: block;
+  flex: 1;
+  min-width: 0;
   height: 36px;
   overflow: hidden;
 }

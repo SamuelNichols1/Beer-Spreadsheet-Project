@@ -1224,51 +1224,59 @@ function TablePage({ onSignOut }) {
           <div className="rating-sheet-grid">
             <label>
               Taste (0-100)
-              <input
-                type="number"
-                min="0"
-                max="100"
-                value={ratingForm.taste}
-                style={getRatingInputStyle(ratingForm.taste, 100)}
-                onChange={(event) => updateRatingField('taste', event.target.value)}
-              />
-              <ScaleHint value={ratingForm.taste} points={TASTE_SCALE_WORDS} />
+              <div className="rating-score-row">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={ratingForm.taste}
+                  style={getRatingInputStyle(ratingForm.taste, 100)}
+                  onChange={(event) => updateRatingField('taste', event.target.value)}
+                />
+                <ScaleHint value={ratingForm.taste} points={TASTE_SCALE_WORDS} />
+              </div>
             </label>
             <label>
               Value (0-20)
-              <input
-                type="number"
-                min="0"
-                max="20"
-                value={ratingForm.value}
-                style={getRatingInputStyle(ratingForm.value, 20)}
-                onChange={(event) => updateRatingField('value', event.target.value)}
-              />
-              <ScaleHint value={ratingForm.value} points={VALUE_SCALE_WORDS} />
+              <div className="rating-score-row">
+                <input
+                  type="number"
+                  min="0"
+                  max="20"
+                  value={ratingForm.value}
+                  style={getRatingInputStyle(ratingForm.value, 20)}
+                  onChange={(event) => updateRatingField('value', event.target.value)}
+                />
+                <ScaleHint value={ratingForm.value} points={VALUE_SCALE_WORDS} />
+              </div>
             </label>
             <label>
               Texture (0-10)
-              <input
-                type="number"
-                min="0"
-                max="10"
-                value={ratingForm.texture}
-                style={getRatingInputStyle(ratingForm.texture, 10)}
-                onChange={(event) => updateRatingField('texture', event.target.value)}
-              />
-              <ScaleHint value={ratingForm.texture} points={TEXTURE_SCALE_WORDS} />
+              <div className="rating-score-row">
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  value={ratingForm.texture}
+                  style={getRatingInputStyle(ratingForm.texture, 10)}
+                  onChange={(event) => updateRatingField('texture', event.target.value)}
+                />
+                <ScaleHint value={ratingForm.texture} points={TEXTURE_SCALE_WORDS} />
+              </div>
             </label>
             <label>
               Packaging (0-5)
-              <input
-                type="number"
-                min="0"
-                max="5"
-                value={ratingForm.packaging}
-                style={getRatingInputStyle(ratingForm.packaging, 5)}
-                onChange={(event) => updateRatingField('packaging', event.target.value)}
-              />
-              <ScaleHint value={ratingForm.packaging} points={PACKAGING_SCALE_WORDS} />
+              <div className="rating-score-row">
+                <input
+                  type="number"
+                  min="0"
+                  max="5"
+                  value={ratingForm.packaging}
+                  style={getRatingInputStyle(ratingForm.packaging, 5)}
+                  onChange={(event) => updateRatingField('packaging', event.target.value)}
+                />
+                <ScaleHint value={ratingForm.packaging} points={PACKAGING_SCALE_WORDS} />
+              </div>
             </label>
           </div>
 
