@@ -22,6 +22,11 @@
     import app_routes
 }
 
+http://{$DOMAIN} {
+    encode gzip
+    import app_routes
+}
+
 http://{$PUBLIC_IP} {
     encode gzip
     import app_routes
