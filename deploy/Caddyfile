@@ -1,7 +1,4 @@
-{$DOMAIN} {
-    encode gzip
-    tls /certs/domain.cert.pem /certs/private.key.pem
-
+(app_routes) {
     # Routes API traffic to Django using /api prefix.
     handle_path /api/* {
         reverse_proxy backend:8000
@@ -17,4 +14,15 @@
     handle {
         reverse_proxy frontend:80
     }
+}
+
+{$DOMAIN} {
+    encode gzip
+    tls /certs/domain.cert.pem /certs/private.key.pem
+    import app_routes
+}
+
+http://{$PUBLIC_IP} {
+    encode gzip
+    import app_routes
 }

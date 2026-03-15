@@ -4,6 +4,7 @@ This setup serves:
 
 - Frontend at `https://ratings.beer/`
 - Backend API at `https://ratings.beer/api/...`
+- Optional public IP fallback at `http://193.46.21.141/`
 
 ## 1) Server prerequisites
 
@@ -22,6 +23,7 @@ Required values:
 - `DJANGO_CSRF_TRUSTED_ORIGINS` should include `https://ratings.beer`
 - `DJANGO_CORS_ALLOWED_ORIGINS` should include `https://ratings.beer`
 - `DOMAIN=ratings.beer`
+- `PUBLIC_IP=193.46.21.141`
 
 ## 3) TLS certificate files
 
@@ -51,6 +53,7 @@ docker compose up -d --build
 - Frontend: `https://ratings.beer/`
 - API health check example: `https://ratings.beer/api/csrf/`
 - Django admin: `https://ratings.beer/admin/`
+- Public IP fallback: `http://193.46.21.141/`
 
 ## 6) Useful commands
 
@@ -68,5 +71,6 @@ docker compose build backend
 ## Notes
 
 - Caddy in `deploy/Caddyfile` is configured for manual TLS with mounted cert/key files.
+- Public IP access is HTTP only. HTTPS on the raw IP will not match your `ratings.beer` certificate.
 - SQLite is persisted in the Docker volume `db_data`.
 - Frontend is built with `VITE_API_BASE_URL=/api` so browser calls stay on the same domain.
