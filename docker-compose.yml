@@ -10,8 +10,8 @@ services:
       DJANGO_SECURE_COOKIES: "True"
       DJANGO_DB_PATH: /app/db.sqlite3
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-ratings.beer,www.ratings.beer,localhost,127.0.0.1}
-      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-https://ratings.beer,https://www.ratings.beer}
-      DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS:-https://ratings.beer,https://www.ratings.beer}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-https://ratings.beer:80085,https://www.ratings.beer:80085}
+      DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS:-https://ratings.beer:80085,https://www.ratings.beer:80085}
     volumes:
       - ./Beer_Spreadsheet/db.sqlite3:/app/db.sqlite3
     restart: unless-stopped
@@ -33,7 +33,7 @@ services:
       - .env
     ports:
       - "80:80"
-      - "443:443"
+      - "80085:80085"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./certs:/certs:ro

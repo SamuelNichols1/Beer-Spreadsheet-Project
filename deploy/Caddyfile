@@ -16,7 +16,7 @@
     }
 }
 
-{$DOMAIN} {
+{$DOMAIN}:80085 {
     encode gzip
     tls /certs/domain.cert.pem /certs/private.key.pem
     import app_routes
