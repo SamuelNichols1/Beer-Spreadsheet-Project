@@ -29,8 +29,8 @@ This project is configured to use your provider-issued certificate files (manual
 
 Expected files:
 
-- `ratings.beer-ssl-bundle/ratings.beer-ssl-bundle/domain.cert.pem`
-- `ratings.beer-ssl-bundle/ratings.beer-ssl-bundle/private.key.pem`
+- `certs/domain.cert.pem`
+- `certs/private.key.pem`
 
 If your provider rotates certs, replace these files and restart Caddy:
 
