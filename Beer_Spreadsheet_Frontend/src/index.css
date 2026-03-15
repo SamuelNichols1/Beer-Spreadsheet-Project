@@ -1,0 +1,12 @@
+:root {
+  font-family: Inter, Arial, Helvetica, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(160deg, #f2efff 0%, #eef8ff 45%, #fff6ea 100%);
+}

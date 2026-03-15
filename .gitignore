@@ -1,0 +1,64 @@
+# ------------------------------
+# OS / Editor
+# ------------------------------
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# ------------------------------
+# Python / Django
+# ------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+Beer_Spreadsheet/env/
+
+# Django local/runtime files
+Beer_Spreadsheet/db.sqlite3
+Beer_Spreadsheet/logs/
+staticfiles/
+media/
+
+# ------------------------------
+# Node / Frontend
+# ------------------------------
+node_modules/
+dist/
+dist-ssr/
+*.tsbuildinfo
+
+# ------------------------------
+# Logs
+# ------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ------------------------------
+# Environment files
+# ------------------------------
+.env
+.env.*
+*.local
