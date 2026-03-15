@@ -21,6 +21,35 @@ if not exist "%FRONTEND_DIR%\package.json" (
   exit /b 1
 )
 
+for /f "tokens=1,2 delims=." %%a in ('node -v 2^>nul') do (
+  set "NODE_MAJOR=%%a"
+  set "NODE_MINOR=%%b"
+)
+
+if not defined NODE_MAJOR (
+  echo [ERROR] Node.js is not installed or not available in PATH.
+  echo         Install Node.js 20.19+ (or 22.12+) for this frontend.
+  pause
+  exit /b 1
+)
+
+set "NODE_MAJOR=%NODE_MAJOR:v=%"
+if %NODE_MAJOR% LSS 20 (
+  echo [ERROR] Detected Node.js %NODE_MAJOR%.%NODE_MINOR% but this project uses Vite 8.
+  echo         Vite 8 requires Node.js 20.19+ (or 22.12+).
+  echo         Please upgrade Node.js, then re-run start-dev.bat.
+  pause
+  exit /b 1
+)
+
+if %NODE_MAJOR% EQU 20 if %NODE_MINOR% LSS 19 (
+  echo [ERROR] Detected Node.js %NODE_MAJOR%.%NODE_MINOR% but this project uses Vite 8.
+  echo         Vite 8 requires Node.js 20.19+ (or 22.12+).
+  echo         Please upgrade Node.js, then re-run start-dev.bat.
+  pause
+  exit /b 1
+)
+
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 if not exist "%LOG_FILE%" type nul > "%LOG_FILE%"
 

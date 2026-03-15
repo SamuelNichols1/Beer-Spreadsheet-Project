@@ -127,7 +127,7 @@ def rate_beer(request):
         style=style,
     )
 
-    response_message = None
+    response_message = ""
     if created:
         logger.info("Created new beer: %s by %s", name, brewery)
         response_message = f"Beer '{name}' by '{brewery}' created"
