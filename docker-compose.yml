@@ -1,41 +1,47 @@
 services:
   backend:
-    build: ./Beer_Spreadsheet
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./Beer_Spreadsheet:/app
-      - ./logs:/logs
+    build:
+      context: ./Beer_Spreadsheet
+      dockerfile: Dockerfile.prod
+    env_file:
+      - .env
     environment:
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
-      - DJANGO_DEBUG=${DJANGO_DEBUG:-True}
-      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend,host.docker.internal,193.46.21.141}
-      - DJANGO_CORS_ALLOWED_ORIGINS=${DJANGO_CORS_ALLOWED_ORIGINS:-http://localhost:80,http://127.0.0.1:80, http://193.46.21.141:80}
-      - DJANGO_CSRF_TRUSTED_ORIGINS=${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:80,http://127.0.0.1:80, http://193.46.21.141:80}
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/csrf/')",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 15s
+      DJANGO_DEBUG: "False"
+      DJANGO_SECURE_COOKIES: "True"
+      DJANGO_DB_PATH: /data/db.sqlite3
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-ratings.beer,www.ratings.beer,localhost,127.0.0.1}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-https://ratings.beer,https://www.ratings.beer}
+      DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS:-https://ratings.beer,https://www.ratings.beer}
+    volumes:
+      - db_data:/data
+    restart: unless-stopped
 
   frontend:
-    build: ./Beer_Spreadsheet_Frontend
-    ports:
-      - "80:5173"
-    volumes:
-      - ./Beer_Spreadsheet_Frontend:/app
-      - /app/node_modules
-    environment:
-      - BACKEND_URL=http://host.docker.internal:8000
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    build:
+      context: ./Beer_Spreadsheet_Frontend
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_BASE_URL: /api
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.10-alpine
     depends_on:
-      backend:
-        condition: service_healthy
+      - frontend
+      - backend
+    env_file:
+      - .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./ratings.beer-ssl-bundle/ratings.beer-ssl-bundle:/certs:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:

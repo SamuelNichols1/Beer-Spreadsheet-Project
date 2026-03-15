@@ -62,3 +62,8 @@ lerna-debug.log*
 .env
 .env.*
 *.local
+
+# TLS certificates
+ratings.beer-ssl-bundle/
+*.pem
+*.key

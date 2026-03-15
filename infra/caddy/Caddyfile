@@ -1,7 +1,0 @@
-{$DOMAIN}, localhost {
-    reverse_proxy proxy:80
-}
-
-:80 {
-    reverse_proxy proxy:80
-}
