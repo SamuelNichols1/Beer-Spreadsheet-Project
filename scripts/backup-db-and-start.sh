@@ -13,7 +13,7 @@ REBOOT_CMD="/sbin/reboot"
 #   \\DESKTOP-6MQI544\Network Folder
 # In Linux SMB/CIFS format this becomes:
 #   //DESKTOP-6MQI544/Network Folder
-SHARE_PATH="//DESKTOP-6MQI544/Network Folder"
+SHARE_PATH="//192.168.1.74/Network Folder"
 
 # Local Ubuntu mount location for the network share.
 MOUNT_POINT="/mnt/network-drive"
