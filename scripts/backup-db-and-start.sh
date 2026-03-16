@@ -64,7 +64,7 @@ if [[ "$AUTO_MOUNT_SHARE" == "true" ]]; then
     fi
 
     mount -t cifs "$SHARE_PATH" "$MOUNT_POINT" \
-      -o "credentials=$CREDENTIALS_FILE,iocharset=utf8,vers=3.0,uid=$(id -u),gid=$(id -g),file_mode=0664,dir_mode=0775"
+      -o "credentials=$CREDENTIALS_FILE,iocharset=utf8,vers=3.0,rw,uid=$(id -u),gid=$(id -g),file_mode=0664,dir_mode=0775"
   fi
 fi
 
