@@ -1410,7 +1410,6 @@ function TablePage({ onSignOut }) {
                               <td></td>
                               <td></td>
                               <td></td>
-                              <td></td>
                               <td style={getScoreCellStyle(rating.taste, 100)}>
                                 {fmt(rating.taste, isMobile)}
                               </td>

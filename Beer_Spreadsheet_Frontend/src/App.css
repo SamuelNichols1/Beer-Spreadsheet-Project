@@ -691,10 +691,6 @@ button:disabled {
     vertical-align: middle;
   }
 
-  .ratings-table tr.detail-row td:nth-child(2) {
-    display: none;
-  }
-
   .rating-sheet {
     left: 0;
     right: 0;
