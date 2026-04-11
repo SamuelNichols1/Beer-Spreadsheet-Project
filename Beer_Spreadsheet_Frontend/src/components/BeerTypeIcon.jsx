@@ -1,7 +1,11 @@
+import draughtIcon from "../assets/Draught.png";
+import canIcon from "../assets/can.png";
+import bottleIcon from "../assets/bottle.png";
+
 const ICONS = {
-  draught: "/src/assets/draught.png",
-  can: "/src/assets/can.png",
-  bottle: "/src/assets/bottle.png",
+  draught: draughtIcon,
+  can: canIcon,
+  bottle: bottleIcon,
 };
 
 export default function BeerTypeIcon({ type, size = 24, style = {} }) {
