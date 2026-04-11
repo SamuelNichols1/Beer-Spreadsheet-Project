@@ -10,6 +10,11 @@
         reverse_proxy backend:8000
     }
 
+    # Serve Django static files (admin CSS/JS, etc.)
+    handle_path /static/* {
+        reverse_proxy backend:8000
+    }
+
     # Everything else goes to the React app.
     handle {
         reverse_proxy frontend:80
