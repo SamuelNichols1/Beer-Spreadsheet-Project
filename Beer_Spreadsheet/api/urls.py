@@ -41,4 +41,5 @@ urlpatterns = [
     path("beers/", views.get_beer_list, name="get_beer_list"),
     path("beers_with_ratings/", views.get_beer_list_with_ratings, name="get_beer_list_with_ratings"),
     path("beers_with_average_ratings/", views.get_beer_list_with_average_ratings, name="get_beer_list_with_average_ratings"),
+    path("unseen_ratings/", views.unseen_ratings, name="unseen_ratings"),
 ]

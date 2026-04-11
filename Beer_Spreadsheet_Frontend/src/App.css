@@ -4,7 +4,7 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
-  min-height: 100vh;
+  min-height: 100dvh;
   padding: 24px;
   box-sizing: border-box;
 }
@@ -163,7 +163,9 @@ button:disabled {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
   max-width: 100%;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -187,7 +189,7 @@ button:disabled {
   flex-wrap: wrap;
 }
 
-.my-color-row input[type='color'] {
+.my-color-row input[type="color"] {
   width: 34px;
   height: 28px;
   border: 1px solid #d8d3ff;
@@ -223,7 +225,9 @@ button:disabled {
 .ratings-table thead th.sortable-header {
   cursor: pointer;
   user-select: none;
-  transition: background-color 120ms ease, color 120ms ease;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
 }
 
 .ratings-table thead th.sortable-header:hover {
@@ -322,13 +326,16 @@ button:disabled {
 
 .rating-sheet {
   position: fixed;
-  left: 12px;
-  right: 12px;
-  bottom: 8px;
+  left: 0;
+  right: 0;
+  bottom: 0;
   border: 1px solid #d8d3ff;
-  border-radius: 14px;
+  border-bottom: none;
+  border-left: none;
+  border-right: none;
+  border-radius: 14px 14px 0 0;
   padding: 10px;
-  overflow: hidden;
+  overflow: auto;
   z-index: 60;
   transition: height 240ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: height;
@@ -363,7 +370,9 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: opacity 140ms ease, transform 140ms ease;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
 }
 
 .rating-sheet.collapsed {
@@ -506,12 +515,20 @@ button:disabled {
   flex-wrap: wrap;
 }
 
-.rating-toast {
+.toast-stack {
   position: fixed;
   left: 50%;
-  bottom: 16px;
+  top: 16px;
   transform: translateX(-50%);
-  z-index: 120;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.rating-toast {
   padding: 10px 14px;
   border-radius: 10px;
   font-size: 13px;
@@ -519,6 +536,7 @@ button:disabled {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
   max-width: calc(100vw - 24px);
   text-align: center;
+  pointer-events: auto;
 }
 
 .rating-toast.success {
@@ -590,9 +608,9 @@ button:disabled {
   }
 
   .rating-sheet {
-    left: 6px;
-    right: 6px;
-    bottom: 6px;
+    left: 0;
+    right: 0;
+    bottom: 0;
     padding: 8px;
   }
 

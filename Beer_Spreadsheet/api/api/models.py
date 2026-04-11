@@ -19,13 +19,26 @@ class Rating(models.Model):
     texture = models.IntegerField()
     packaging = models.IntegerField()
     overall = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
     def __str__(self):
         return f"Rating for {self.beer.name}: {self.overall}"
 
+class RatingSeen(models.Model):
+    user = models.ForeignKey("auth.User", on_delete=models.CASCADE, related_name="seen_ratings")
+    rating = models.ForeignKey(Rating, on_delete=models.CASCADE, related_name="seen_by")
+    seen_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "rating")
+
+    def __str__(self):
+        return f"{self.user.username} saw rating {self.rating.id} at {self.seen_at}"
 
 class UserProfile(models.Model):
     user = models.OneToOneField("auth.User", on_delete=models.CASCADE, related_name="profile")
     color = models.CharField(max_length=7, default="#7c5cff")
 
     def __str__(self):
-        return f"Profile for {self.user.username}" 
+        return f"Profile for {self.user.username}"

@@ -1,7 +1,7 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
-const backendUrl = process.env.BACKEND_URL || 'http://127.0.0.1:8000'
+const backendUrl = process.env.BACKEND_URL || "http://127.0.0.1:8000";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -9,38 +9,42 @@ export default defineConfig({
   server: {
     host: true,
     proxy: {
-      '/csrf/': {
+      "/csrf/": {
         target: backendUrl,
         changeOrigin: true,
       },
-      '/api-token-auth/': {
+      "/api-token-auth/": {
         target: backendUrl,
         changeOrigin: true,
       },
-      '/beers/': {
+      "/beers/": {
         target: backendUrl,
         changeOrigin: true,
       },
-      '/beers_with_ratings/': {
+      "/beers_with_ratings/": {
         target: backendUrl,
         changeOrigin: true,
       },
-      '/beers_with_average_ratings/': {
+      "/beers_with_average_ratings/": {
         target: backendUrl,
         changeOrigin: true,
       },
-      '/users/': {
+      "/users/": {
         target: backendUrl,
         changeOrigin: true,
       },
-      '/my-color/': {
+      "/my-color/": {
         target: backendUrl,
         changeOrigin: true,
       },
-      '/rate_beer/': {
+      "/rate_beer/": {
+        target: backendUrl,
+        changeOrigin: true,
+      },
+      "/unseen_ratings/": {
         target: backendUrl,
         changeOrigin: true,
       },
     },
   },
-})
+});

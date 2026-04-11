@@ -3,14 +3,16 @@ from django.http import JsonResponse
 from django.db.models import Avg, FloatField, Prefetch, Q, Value
 from django.db.models.functions import Coalesce
 from django.middleware.csrf import get_token
-from api.api.models import Beer, Rating, UserProfile
+from api.api.models import Beer, Rating, UserProfile, RatingSeen
 from api.api.tools import calculate_overall_rating
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import api_view, permission_classes
 import re
+from django.utils import timezone
+from datetime import timedelta
 
 from api.logger import get_logger
-from api.api.serializers import BeerRatingsSerializer, BeerSerializer, GroupSerializer, RateBeerInputSerializer, UserSerializer
+from api.api.serializers import BeerRatingsSerializer, BeerSerializer, GroupSerializer, RateBeerInputSerializer, UserSerializer, RatingSerializer
 
 logger = get_logger(__name__)
 
@@ -120,17 +122,22 @@ def rate_beer(request):
     if not all([name, brewery, beer_type, style]):
         return JsonResponse({"detail": "name, brewery, type and style are required when beer_id is not provided."}, status=400)
 
-    beer, created = Beer.objects.get_or_create(
-        name=name,
-        brewery=brewery,
-        type=beer_type,
-        style=style,
-    )
 
+    # Match only on brewery, name, and type
+    beer = Beer.objects.filter(name=name, brewery=brewery, type=beer_type).first()
+    created = False
     response_message = ""
-    if created:
+    if beer:
+        # Update style if changed
+        if beer.style != style:
+            beer.style = style
+            beer.save(update_fields=["style"])
+            response_message = f"Beer '{name}' by '{brewery}' style updated. "
+    else:
+        beer = Beer.objects.create(name=name, brewery=brewery, type=beer_type, style=style)
+        created = True
         logger.info("Created new beer: %s by %s", name, brewery)
-        response_message = f"Beer '{name}' by '{brewery}' created"
+        response_message = f"Beer '{name}' by '{brewery}' created. "
 
     overall = calculate_overall_rating(taste, value, texture, packaging)
 
@@ -142,7 +149,9 @@ def rate_beer(request):
         existing_rating.texture = texture
         existing_rating.packaging = packaging
         existing_rating.overall = overall
-        existing_rating.save(update_fields=["taste", "value", "texture", "packaging", "overall"])
+        existing_rating.updated_at = timezone.now()
+        existing_rating.seen_by.all().delete()  # Clear seen status for all users since this rating has changed
+        existing_rating.save(update_fields=["taste", "value", "texture", "packaging", "overall", "updated_at"])
         if response_message:
             response_message += " and "
         response_message += f"Updated rating for beer '{name}' by '{brewery}' successfully."
@@ -233,3 +242,38 @@ def my_color(request):
     profile.color = color.lower()
     profile.save(update_fields=["color"])
     return JsonResponse({"username": request.user.username, "color": profile.color})
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def unseen_ratings(request):
+    user = request.user
+
+    raw_since = request.query_params.get("since")
+    try:
+        since = timezone.datetime.fromisoformat(raw_since) if raw_since else None
+    except ValueError:
+        since = None
+
+    from_date = since or user.last_login or (timezone.now() - timedelta(days=7))
+    week_ago = timezone.now() - timedelta(days=7)
+    since = max(from_date, week_ago)
+
+    # Ratings not by this user, created or updated since 'since', and not seen by this user
+    unseen = Rating.objects.filter(
+        Q(created_at__gte=since) | Q(updated_at__gte=since)
+    ).exclude(
+        user=user
+    ).exclude(
+        seen_by__user=user
+    ).select_related("beer", "user").order_by("-updated_at")
+
+    # Mark all returned ratings as seen
+    if unseen.exists():
+        RatingSeen.objects.bulk_create(
+            [RatingSeen(user=user, rating=rating) for rating in unseen],
+            ignore_conflicts=True
+        )
+
+    data = RatingSerializer(unseen, many=True, context={'request': request}).data
+    return JsonResponse({"results": data})

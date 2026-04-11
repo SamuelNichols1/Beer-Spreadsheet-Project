@@ -3,7 +3,7 @@ from api.api.models import Beer, Rating
 from rest_framework import serializers
 
 
-class UserSerializer(serializers.HyperlinkedModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     color = serializers.SerializerMethodField()
 
     def get_color(self, obj):
@@ -14,13 +14,13 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = User
-        fields = ["url", "username", "email", "groups", "color"]
+        fields = ["id", "username", "email", "groups", "color"]
 
 
-class GroupSerializer(serializers.HyperlinkedModelSerializer):
+class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
-        fields = ["url", "name"]
+        fields = ["id", "name"]
 
 class RateBeerInputSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=100, required=True)
@@ -34,15 +34,19 @@ class RateBeerInputSerializer(serializers.Serializer):
     packaging = serializers.IntegerField(min_value=0, max_value=5, required=True)
 
 
-class RatingSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Rating
-        fields = ["id", "user", "taste", "value", "texture", "packaging", "overall"]
-
 class BeerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Beer
         fields = ["id", "img", "brewery", "name", "type", "style"]
+
+
+class RatingSerializer(serializers.ModelSerializer):
+    beer = BeerSerializer(read_only=True)
+    user = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = Rating
+        fields = ["id", "beer", "user", "taste", "value", "texture", "packaging", "overall", "created_at", "updated_at"]
 
 
 class BeerRatingsSerializer(serializers.ModelSerializer):
