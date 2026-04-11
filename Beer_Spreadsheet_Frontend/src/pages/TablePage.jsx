@@ -5,6 +5,7 @@ import BeerTypeIcon from "../components/BeerTypeIcon";
 const USERS_LIST_KEY = "usersList";
 const BEER_LIST_KEY = "beerList";
 const BEER_LIST_WITH_RATINGS_KEY = "beerListWithRatings";
+const BEER_LIST_WITH_AVERAGE_RATINGS_KEY = "beerListWithAverageRatings";
 const COLLAPSED_SHEET_HEIGHT = 84;
 const BEER_TYPE_OPTIONS = ["Draught", "Can", "Bottle"];
 const BEER_STYLE_OPTIONS = [
@@ -1728,7 +1729,9 @@ function TablePage({ onSignOut }) {
       </section>
 
       {toastMessage && (
-        <div className={`rating-toast ${toastType}`}>{toastMessage}</div>
+        <div className="toast-stack">
+          <div className={`rating-toast ${toastType}`}>{toastMessage}</div>
+        </div>
       )}
     </main>
   );
