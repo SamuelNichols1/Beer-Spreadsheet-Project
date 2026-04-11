@@ -1007,10 +1007,27 @@ function TablePage({ onSignOut }) {
         texture: 0,
         packaging: 0,
       });
-    } catch {
-      setRatingError("Could not save rating. Please try again.");
-      setToastType("error");
-      setToastMessage("Could not save rating. Please try again.");
+    } catch (err) {
+      // Only show error if it's not from the cache refresh (rating was still saved)
+      if (err?.message === "Failed to refresh beer data") {
+        setRatingsVersion((current) => current + 1);
+        setToastType("success");
+        setToastMessage("Rating saved");
+        setRatingForm({
+          breweryQuery: "",
+          beerQuery: "",
+          styleQuery: "",
+          typeQuery: "",
+          taste: 0,
+          value: 0,
+          texture: 0,
+          packaging: 0,
+        });
+      } else {
+        setRatingError("Could not save rating. Please try again.");
+        setToastType("error");
+        setToastMessage("Could not save rating. Please try again.");
+      }
     } finally {
       setSavingRating(false);
     }
