@@ -691,7 +691,7 @@ button:disabled {
     vertical-align: middle;
   }
 
-  .ratings-table tr.detail-row {
+  .ratings-table tr.detail-row td:nth-child(2) {
     display: none;
   }
 

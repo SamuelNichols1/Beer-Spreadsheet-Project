@@ -1390,16 +1390,8 @@ function TablePage({ onSignOut }) {
                               </td>
                               <td></td>
                               <td></td>
-                              <td
-                                className="style-column"
-                                style={{
-                                  fontSize: "0.85em",
-                                  color: "#666",
-                                  fontStyle: "italic",
-                                }}
-                              >
-                                {beer.style}
-                              </td>
+                              <td></td>
+                              <td></td>
                               <td></td>
                               <td style={getScoreCellStyle(rating.taste, 100)}>
                                 {fmt(rating.taste, isMobile)}
