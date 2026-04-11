@@ -264,6 +264,8 @@ function App() {
 
       if (tokenFromStorage) {
         setSavedToken(tokenFromStorage);
+        isFirstFetch.current = true;
+        shownRatingIds.current = new Set();
         setIsAuthenticated(true);
 
         try {
@@ -411,6 +413,8 @@ function App() {
 
       localStorage.setItem("authToken", data.token);
       setSavedToken(data.token);
+      isFirstFetch.current = true;
+      shownRatingIds.current = new Set();
       await fetchAndStoreBeerData(data.token);
       setIsAuthenticated(true);
       setPassword("");
