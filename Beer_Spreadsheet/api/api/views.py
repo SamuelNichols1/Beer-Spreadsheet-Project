@@ -221,6 +221,18 @@ def get_beer_list_with_average_ratings(request):
             "avg_packaging": beer.avg_packaging,
             "avg_overall": beer.avg_overall,
             "rated_by": sorted({rating.user.username for rating in getattr(beer, "filtered_ratings", [])}),
+            "ratings": [
+                {
+                    "user": rating.user.username,
+                    "user_id": rating.user.id,
+                    "taste": rating.taste,
+                    "value": rating.value,
+                    "texture": rating.texture,
+                    "packaging": rating.packaging,
+                    "overall": rating.overall,
+                }
+                for rating in sorted(getattr(beer, "filtered_ratings", []), key=lambda r: r.user.username)
+            ],
         }
         for beer in beers
     ]

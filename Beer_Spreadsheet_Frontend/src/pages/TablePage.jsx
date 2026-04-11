@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Fragment } from "react";
 import { Link } from "react-router-dom";
 import BeerTypeIcon from "../components/BeerTypeIcon";
 
 const USERS_LIST_KEY = "usersList";
 const BEER_LIST_KEY = "beerList";
 const BEER_LIST_WITH_RATINGS_KEY = "beerListWithRatings";
-const BEER_LIST_WITH_AVERAGE_RATINGS_KEY = "beerListWithAverageRatings";
 const COLLAPSED_SHEET_HEIGHT = 84;
 const BEER_TYPE_OPTIONS = ["Draught", "Can", "Bottle"];
 const BEER_STYLE_OPTIONS = [
@@ -390,6 +389,8 @@ function TablePage({ onSignOut }) {
 
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [averageData, setAverageData] = useState([]);
+  const [expandedBeerId, setExpandedBeerId] = useState(null);
+  const [closingBeerId, setClosingBeerId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== "undefined"
@@ -607,7 +608,12 @@ function TablePage({ onSignOut }) {
         return sortDirection === "asc" ? tieBreak : -tieBreak;
       }
 
-      if (sortKey === "brewery" || sortKey === "name" || sortKey === "type") {
+      if (
+        sortKey === "brewery" ||
+        sortKey === "name" ||
+        sortKey === "style" ||
+        sortKey === "type"
+      ) {
         const aValue = String(a?.[sortKey] ?? "");
         const bValue = String(b?.[sortKey] ?? "");
         const result = aValue.localeCompare(bValue);
@@ -1056,6 +1062,21 @@ function TablePage({ onSignOut }) {
     return `sortable-header ${active ? "active" : ""}`;
   }
 
+  function toggleBeerExpansion(beerId) {
+    if (expandedBeerId === beerId) {
+      // Closing - set closing state and delay the actual close
+      setClosingBeerId(beerId);
+      setTimeout(() => {
+        setExpandedBeerId(null);
+        setClosingBeerId(null);
+      }, 300); // Match animation duration
+    } else {
+      // Opening
+      setClosingBeerId(null);
+      setExpandedBeerId(beerId);
+    }
+  }
+
   return (
     <main
       className="page table-page"
@@ -1156,6 +1177,15 @@ function TablePage({ onSignOut }) {
                     </span>
                   </th>
                   <th
+                    className={`${headerClass("style")} style-column`}
+                    onClick={() => toggleSort("style")}
+                  >
+                    Style{" "}
+                    <span className="sort-indicator">
+                      {renderSortIndicator("style")}
+                    </span>
+                  </th>
+                  <th
                     className={headerClass("type")}
                     onClick={() => toggleSort("type")}
                   >
@@ -1239,73 +1269,163 @@ function TablePage({ onSignOut }) {
                 </tr>
               </thead>
               <tbody>
-                {sortedAverageData.map((beer) => (
-                  <tr key={beer.id}>
-                    <td>{beer.brewery}</td>
-                    <td>{beer.name}</td>
-                    <td>
-                      <BeerTypeIcon type={beer.type} size={24} />
-                    </td>
-                    <td>
-                      {selectedUsers.length === 0 ? (
-                        "-"
-                      ) : isMobile ? (
-                        <span
-                          className="contributors-pie"
-                          style={getContributorsPieStyle(beer, selectedUsers)}
-                          title={getRatedByDisplay(beer)}
-                        />
-                      ) : (
-                        <div
-                          className="contributors-grid"
-                          style={{
-                            gridTemplateColumns: `repeat(${selectedUsers.length}, minmax(0, 1fr))`,
-                          }}
-                        >
-                          {selectedUsers.map((user) => {
-                            const contributed = hasUserContributed(
-                              beer,
-                              user.username,
-                            );
-                            const color = getUserColor(user);
+                {sortedAverageData.map((beer) => {
+                  const isExpanded = expandedBeerId === beer.id;
+                  const isClosing = closingBeerId === beer.id;
+                  const showDetails = isExpanded || isClosing;
+                  const hasMultipleRatings =
+                    Array.isArray(beer.ratings) && beer.ratings.length > 1;
 
-                            return (
-                              <span
-                                key={`${beer.id}-${user.id}`}
-                                className={`contributor-block ${contributed ? "active" : "inactive"}`}
-                                title={`${user.username}: ${contributed ? "rated" : "not rated"}`}
+                  return (
+                    <Fragment key={beer.id}>
+                      <tr
+                        onClick={() =>
+                          hasMultipleRatings && toggleBeerExpansion(beer.id)
+                        }
+                        style={{
+                          cursor: hasMultipleRatings ? "pointer" : "default",
+                        }}
+                        className={isExpanded ? "expanded-row" : ""}
+                      >
+                        <td>{beer.brewery}</td>
+                        <td>
+                          {isExpanded && (
+                            <span
+                              style={{ marginRight: "8px", fontSize: "12px" }}
+                            >
+                              ▼
+                            </span>
+                          )}
+                          {beer.name}
+                        </td>
+                        <td className="style-column">{beer.style}</td>
+                        <td>
+                          <BeerTypeIcon type={beer.type} size={24} />
+                        </td>
+                        <td>
+                          {selectedUsers.length === 0 ? (
+                            "-"
+                          ) : isMobile ? (
+                            <span
+                              className="contributors-pie"
+                              style={getContributorsPieStyle(
+                                beer,
+                                selectedUsers,
+                              )}
+                              title={getRatedByDisplay(beer)}
+                            />
+                          ) : (
+                            <div
+                              className="contributors-grid"
+                              style={{
+                                gridTemplateColumns: `repeat(${selectedUsers.length}, minmax(0, 1fr))`,
+                              }}
+                            >
+                              {selectedUsers.map((user) => {
+                                const contributed = hasUserContributed(
+                                  beer,
+                                  user.username,
+                                );
+                                const color = getUserColor(user);
+
+                                return (
+                                  <span
+                                    key={`${beer.id}-${user.id}`}
+                                    className={`contributor-block ${contributed ? "active" : "inactive"}`}
+                                    title={`${user.username}: ${contributed ? "rated" : "not rated"}`}
+                                    style={{
+                                      borderColor: color,
+                                      backgroundColor: contributed
+                                        ? color
+                                        : "transparent",
+                                      color: contributed ? "#ffffff" : color,
+                                    }}
+                                  >
+                                    {getUserShortLabel(user.username)}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </td>
+                        <td style={getScoreCellStyle(beer.avg_taste, 100)}>
+                          {fmt(beer.avg_taste, isMobile)}
+                        </td>
+                        <td style={getScoreCellStyle(beer.avg_value, 20)}>
+                          {fmt(beer.avg_value, isMobile)}
+                        </td>
+                        <td style={getScoreCellStyle(beer.avg_texture, 10)}>
+                          {fmt(beer.avg_texture, isMobile)}
+                        </td>
+                        <td style={getScoreCellStyle(beer.avg_packaging, 5)}>
+                          {fmt(beer.avg_packaging, isMobile)}
+                        </td>
+                        <td style={getScoreCellStyle(beer.avg_overall, 100)}>
+                          {fmt(beer.avg_overall, isMobile)}
+                        </td>
+                      </tr>
+                      {showDetails &&
+                        hasMultipleRatings &&
+                        beer.ratings.map((rating) => {
+                          const user = selectedUsers.find(
+                            (u) => u.username === rating.user,
+                          );
+                          const userColor = user
+                            ? getUserColor(user)
+                            : "#7c5cff";
+
+                          return (
+                            <tr
+                              key={`${beer.id}-${rating.user_id}`}
+                              className={`detail-row ${isClosing ? "closing" : "opening"}`}
+                            >
+                              <td
                                 style={{
-                                  borderColor: color,
-                                  backgroundColor: contributed
-                                    ? color
-                                    : "transparent",
-                                  color: contributed ? "#ffffff" : color,
+                                  fontSize: "0.9em",
+                                  color: userColor,
+                                  fontWeight: "bold",
                                 }}
                               >
-                                {getUserShortLabel(user.username)}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </td>
-                    <td style={getScoreCellStyle(beer.avg_taste, 100)}>
-                      {fmt(beer.avg_taste, isMobile)}
-                    </td>
-                    <td style={getScoreCellStyle(beer.avg_value, 20)}>
-                      {fmt(beer.avg_value, isMobile)}
-                    </td>
-                    <td style={getScoreCellStyle(beer.avg_texture, 10)}>
-                      {fmt(beer.avg_texture, isMobile)}
-                    </td>
-                    <td style={getScoreCellStyle(beer.avg_packaging, 5)}>
-                      {fmt(beer.avg_packaging, isMobile)}
-                    </td>
-                    <td style={getScoreCellStyle(beer.avg_overall, 100)}>
-                      {fmt(beer.avg_overall, isMobile)}
-                    </td>
-                  </tr>
-                ))}
+                                {rating.user}
+                              </td>
+                              <td></td>
+                              <td></td>
+                              <td
+                                className="style-column"
+                                style={{
+                                  fontSize: "0.85em",
+                                  color: "#666",
+                                  fontStyle: "italic",
+                                }}
+                              >
+                                {beer.style}
+                              </td>
+                              <td></td>
+                              <td style={getScoreCellStyle(rating.taste, 100)}>
+                                {fmt(rating.taste, isMobile)}
+                              </td>
+                              <td style={getScoreCellStyle(rating.value, 20)}>
+                                {fmt(rating.value, isMobile)}
+                              </td>
+                              <td style={getScoreCellStyle(rating.texture, 10)}>
+                                {fmt(rating.texture, isMobile)}
+                              </td>
+                              <td
+                                style={getScoreCellStyle(rating.packaging, 5)}
+                              >
+                                {fmt(rating.packaging, isMobile)}
+                              </td>
+                              <td
+                                style={getScoreCellStyle(rating.overall, 100)}
+                              >
+                                {fmt(rating.overall, isMobile)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
