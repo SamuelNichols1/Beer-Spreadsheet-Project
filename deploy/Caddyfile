@@ -24,7 +24,7 @@
 # Port 443
 https://{$DOMAIN} {
     encode gzip
-    tls /certs/domain.cert.pem /certs/private.key.pem
+    tls
     import app_routes
 }
 http://{$DOMAIN} {
