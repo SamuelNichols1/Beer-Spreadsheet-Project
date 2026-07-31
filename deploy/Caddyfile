@@ -21,17 +21,18 @@
     }
 }
 
-{$DOMAIN}:404 {
+# Port 443
+https://{$DOMAIN} {
     encode gzip
     tls /certs/domain.cert.pem /certs/private.key.pem
     import app_routes
 }
-
 http://{$DOMAIN} {
     encode gzip
     import app_routes
 }
 
+# HTTP ONLY port 80
 http://{$PUBLIC_IP} {
     encode gzip
     import app_routes
