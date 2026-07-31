@@ -33,7 +33,7 @@ services:
       - .env
     ports:
       - "80:80"
-      - "8008:8008"
+      - "404:404"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./certs:/certs:ro

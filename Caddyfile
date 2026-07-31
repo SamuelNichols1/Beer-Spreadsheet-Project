@@ -21,7 +21,17 @@
     }
 }
 
-{$DOMAIN}:404 {
+{$DOMAIN}:8008 {
+    encode gzip
+    tls /certs/domain.cert.pem /certs/private.key.pem
+    import app_routes
+}
+http://{DOMAIN}:8008 {
+    encode gzip
+    import app_routes
+}
+
+{$DOMAIN} {
     encode gzip
     tls /certs/domain.cert.pem /certs/private.key.pem
     import app_routes

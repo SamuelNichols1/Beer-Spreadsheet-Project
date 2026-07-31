@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DB_FILE="$PROJECT_ROOT/Beer_Spreadsheet/db.sqlite3"
-CRON_SCHEDULE="0 */12 * * *"
+CRON_SCHEDULE="0 9,21 * * *"
 REBOOT_CMD="/sbin/reboot"
 
 # ======================= NETWORK DRIVE SETTINGS =======================
