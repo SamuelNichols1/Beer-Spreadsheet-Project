@@ -23,7 +23,7 @@
 
 https://{$DOMAIN} {
     encode gzip
-    tls
+    tls /certs/domain.cert.pem /certs/private.key.pem
     import app_routes
 }
 
