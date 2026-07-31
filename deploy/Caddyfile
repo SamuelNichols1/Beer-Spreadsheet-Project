@@ -21,25 +21,24 @@
     }
 }
 
-# Port 443
 https://{$DOMAIN} {
     encode gzip
     tls
     import app_routes
 }
+
 http://{$DOMAIN} {
     encode gzip
-    import app_routes
+    redir https://{$DOMAIN}{uri} permanent
 }
 
-# HTTP ONLY port 80
 http://{$PUBLIC_IP} {
     encode gzip
-    import app_routes
+    redir https://{$DOMAIN}{uri} permanent
 }
 
 # Accept direct requests by IP or any other host header on port 80.
 http://:80 {
     encode gzip
-    import app_routes
+    redir https://{$DOMAIN}{uri} permanent
 }
