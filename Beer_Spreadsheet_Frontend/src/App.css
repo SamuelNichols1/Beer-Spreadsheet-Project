@@ -410,8 +410,12 @@ button:disabled {
   border-left: none;
   border-right: none;
   border-radius: 14px 14px 0 0;
-  padding: 10px;
-  overflow: auto;
+  padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   z-index: 60;
   transition: height 240ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: height;
@@ -509,7 +513,7 @@ button:disabled {
   border: 1px solid #ddd6ff;
   border-radius: 8px;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
-  z-index: 90;
+  z-index: 120;
   max-height: 160px;
   overflow-y: auto;
 }
