@@ -606,7 +606,7 @@ def unseen_wine_ratings(request):
         user=user
     ).exclude(
         seen_by__user=user
-    ).select_related("beer", "user").order_by("-updated_at")
+    ).select_related("wine", "user").order_by("-updated_at")
 
     if unseen.exists():
         WineRatingSeen.objects.bulk_create(
@@ -638,7 +638,7 @@ def unseen_cider_ratings(request):
         user=user
     ).exclude(
         seen_by__user=user
-    ).select_related("beer", "user").order_by("-updated_at")
+    ).select_related("cider", "user").order_by("-updated_at")
 
     if unseen.exists():
         CiderRatingSeen.objects.bulk_create(
