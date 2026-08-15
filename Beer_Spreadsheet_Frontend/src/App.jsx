@@ -12,10 +12,67 @@ function normalizeHexColor(value) {
   return /^#[0-9a-fA-F]{6}$/.test(trimmed) ? trimmed.toLowerCase() : null;
 }
 
+const BEVERAGE_CONFIG = {
+  beer: {
+    key: "beer",
+    label: "Beer",
+    pluralLabel: "beers",
+    emoji: "🍺",
+    accent: "#6f5ef5",
+    listEndpoint: "/beers/",
+    ratingsEndpoint: "/beers_with_ratings/",
+    averageEndpoint: "/beers_with_average_ratings/",
+    rateEndpoint: "/rate_beer/",
+    storageKeys: {
+      list: "beerList",
+      ratings: "beerListWithRatings",
+      average: "beerListWithAverageRatings",
+    },
+  },
+  cider: {
+    key: "cider",
+    label: "Cider",
+    pluralLabel: "ciders",
+    emoji: "🍏",
+    accent: "#198754",
+    listEndpoint: "/ciders/",
+    ratingsEndpoint: "/ciders_with_ratings/",
+    averageEndpoint: "/ciders_with_average_ratings/",
+    rateEndpoint: "/rate_cider/",
+    storageKeys: {
+      list: "ciderList",
+      ratings: "ciderListWithRatings",
+      average: "ciderListWithAverageRatings",
+    },
+  },
+  wine: {
+    key: "wine",
+    label: "Wine",
+    pluralLabel: "wines",
+    emoji: "🍷",
+    accent: "#a14373",
+    listEndpoint: "/wines/",
+    ratingsEndpoint: "/wines_with_ratings/",
+    averageEndpoint: "/wines_with_average_ratings/",
+    rateEndpoint: "/rate_wine/",
+    storageKeys: {
+      list: "wineList",
+      ratings: "wineListWithRatings",
+      average: "wineListWithAverageRatings",
+    },
+  },
+};
+
 function App() {
   const BEER_LIST_KEY = "beerList";
   const BEER_LIST_WITH_RATINGS_KEY = "beerListWithRatings";
   const BEER_LIST_WITH_AVERAGE_RATINGS_KEY = "beerListWithAverageRatings";
+  const CIDER_LIST_KEY = "ciderList";
+  const CIDER_LIST_WITH_RATINGS_KEY = "ciderListWithRatings";
+  const CIDER_LIST_WITH_AVERAGE_RATINGS_KEY = "ciderListWithAverageRatings";
+  const WINE_LIST_KEY = "wineList";
+  const WINE_LIST_WITH_RATINGS_KEY = "wineListWithRatings";
+  const WINE_LIST_WITH_AVERAGE_RATINGS_KEY = "wineListWithAverageRatings";
   const USERS_LIST_KEY = "usersList";
 
   const [username, setUsername] = useState("");
@@ -77,7 +134,8 @@ function App() {
     return token;
   }
 
-  async function fetchAndStoreBeerData(token) {
+  async function fetchAndStoreBeverageData(token, beverageKey) {
+    const config = BEVERAGE_CONFIG[beverageKey] || BEVERAGE_CONFIG.beer;
     const normalizedToken = typeof token === "string" ? token.trim() : "";
     if (!normalizedToken) {
       throw new Error("Missing auth token. Please sign in again.");
@@ -88,14 +146,17 @@ function App() {
     };
 
     const [
-      beerListResponse,
-      beerRatingsResponse,
-      beerAverageRatingsResponse,
+      listResponse,
+      ratingsResponse,
+      averageRatingsResponse,
       usersResponse,
     ] = await Promise.all([
-      fetch(`${apiBaseUrl}/beers/`, { method: "GET", headers }),
-      fetch(`${apiBaseUrl}/beers_with_ratings/`, { method: "GET", headers }),
-      fetch(`${apiBaseUrl}/beers_with_average_ratings/`, {
+      fetch(`${apiBaseUrl}${config.listEndpoint}`, { method: "GET", headers }),
+      fetch(`${apiBaseUrl}${config.ratingsEndpoint}`, {
+        method: "GET",
+        headers,
+      }),
+      fetch(`${apiBaseUrl}${config.averageEndpoint}`, {
         method: "GET",
         headers,
       }),
@@ -103,21 +164,21 @@ function App() {
     ]);
 
     if (
-      !beerListResponse.ok ||
-      !beerRatingsResponse.ok ||
-      !beerAverageRatingsResponse.ok ||
+      !listResponse.ok ||
+      !ratingsResponse.ok ||
+      !averageRatingsResponse.ok ||
       !usersResponse.ok
     ) {
       const authFailure =
-        beerListResponse.status === 401 ||
-        beerRatingsResponse.status === 401 ||
-        beerAverageRatingsResponse.status === 401 ||
+        listResponse.status === 401 ||
+        ratingsResponse.status === 401 ||
+        averageRatingsResponse.status === 401 ||
         usersResponse.status === 401;
 
       const firstErrorDetail =
-        (await readErrorDetail(beerListResponse)) ||
-        (await readErrorDetail(beerRatingsResponse)) ||
-        (await readErrorDetail(beerAverageRatingsResponse)) ||
+        (await readErrorDetail(listResponse)) ||
+        (await readErrorDetail(ratingsResponse)) ||
+        (await readErrorDetail(averageRatingsResponse)) ||
         (await readErrorDetail(usersResponse));
 
       if (authFailure) {
@@ -126,24 +187,24 @@ function App() {
         );
       }
 
-      throw new Error(firstErrorDetail || "Failed to fetch beer data");
+      throw new Error(
+        firstErrorDetail || `Failed to fetch ${config.label} data`,
+      );
     }
 
-    const beerList = await readJsonSafe(beerListResponse);
-    const beerListWithRatings = await readJsonSafe(beerRatingsResponse);
-    const beerListWithAverageRatings = await readJsonSafe(
-      beerAverageRatingsResponse,
-    );
+    const list = await readJsonSafe(listResponse);
+    const listWithRatings = await readJsonSafe(ratingsResponse);
+    const listWithAverageRatings = await readJsonSafe(averageRatingsResponse);
     const usersList = await readJsonSafe(usersResponse);
 
-    localStorage.setItem(BEER_LIST_KEY, JSON.stringify(beerList));
+    localStorage.setItem(config.storageKeys.list, JSON.stringify(list));
     localStorage.setItem(
-      BEER_LIST_WITH_RATINGS_KEY,
-      JSON.stringify(beerListWithRatings),
+      config.storageKeys.ratings,
+      JSON.stringify(listWithRatings),
     );
     localStorage.setItem(
-      BEER_LIST_WITH_AVERAGE_RATINGS_KEY,
-      JSON.stringify(beerListWithAverageRatings),
+      config.storageKeys.average,
+      JSON.stringify(listWithAverageRatings),
     );
     localStorage.setItem(USERS_LIST_KEY, JSON.stringify(usersList));
   }
@@ -184,17 +245,28 @@ function App() {
       }
 
       try {
-        const res = await fetch(`${apiBaseUrl}/unseen_ratings/`, {
-          method: "GET",
-          headers: { Authorization: `Token ${token}` },
-        });
+        var results = [];
+        for (var i = 0; i < 3; i++) {
+          var categories = ["beer", "wine", "cider"];
+          console.log(categories[i]);
+          const res = await fetch(
+            `${apiBaseUrl}/unseen_${categories[i]}_ratings/`,
+            {
+              method: "GET",
+              headers: { Authorization: `Token ${token}` },
+            },
+          );
 
-        if (!res.ok) {
-          isFetching.current = false;
-          return;
+          if (!res.ok) {
+            isFetching.current = false;
+            return;
+          }
         }
 
         const data = await res.json();
+        if (Array.isArray(data.results) && data.results.length > 0) {
+          results += data.results;
+        }
 
         if (Array.isArray(data.results) && data.results.length > 0) {
           // Add new ratings to existing list, avoiding duplicates by ID
@@ -269,7 +341,11 @@ function App() {
         setIsAuthenticated(true);
 
         try {
-          await fetchAndStoreBeerData(tokenFromStorage);
+          await Promise.all([
+            fetchAndStoreBeverageData(tokenFromStorage, "beer"),
+            fetchAndStoreBeverageData(tokenFromStorage, "cider"),
+            fetchAndStoreBeverageData(tokenFromStorage, "wine"),
+          ]);
         } catch (err) {
           // Only clear token on actual authentication failures, not network errors
           const isAuthError =
@@ -415,7 +491,11 @@ function App() {
       setSavedToken(data.token);
       isFirstFetch.current = true;
       shownRatingIds.current = new Set();
-      await fetchAndStoreBeerData(data.token);
+      await Promise.all([
+        fetchAndStoreBeverageData(data.token, "beer"),
+        fetchAndStoreBeverageData(data.token, "cider"),
+        fetchAndStoreBeverageData(data.token, "wine"),
+      ]);
       setIsAuthenticated(true);
       setPassword("");
     } catch (err) {
@@ -430,6 +510,12 @@ function App() {
     localStorage.removeItem(BEER_LIST_KEY);
     localStorage.removeItem(BEER_LIST_WITH_RATINGS_KEY);
     localStorage.removeItem(BEER_LIST_WITH_AVERAGE_RATINGS_KEY);
+    localStorage.removeItem(CIDER_LIST_KEY);
+    localStorage.removeItem(CIDER_LIST_WITH_RATINGS_KEY);
+    localStorage.removeItem(CIDER_LIST_WITH_AVERAGE_RATINGS_KEY);
+    localStorage.removeItem(WINE_LIST_KEY);
+    localStorage.removeItem(WINE_LIST_WITH_RATINGS_KEY);
+    localStorage.removeItem(WINE_LIST_WITH_AVERAGE_RATINGS_KEY);
     localStorage.removeItem(USERS_LIST_KEY);
     setSavedToken("");
     setIsAuthenticated(false);
@@ -447,7 +533,7 @@ function App() {
         />
       )}
       <Routes>
-        <Route path="/" element={<Navigate to="/table" replace />} />
+        <Route path="/" element={<Navigate to="/beer-table" replace />} />
 
         <Route
           path="/home"
@@ -474,8 +560,14 @@ function App() {
                     </button>
                   </div>
                   <div className="actions-row">
-                    <Link className="link-button" to="/table">
-                      View Ratings Table
+                    <Link className="link-button" to="/beer-table">
+                      Beer Table
+                    </Link>
+                    <Link className="link-button" to="/cider-table">
+                      Cider Table
+                    </Link>
+                    <Link className="link-button" to="/wine-table">
+                      Wine Table
                     </Link>
                     <button type="button" onClick={clearToken}>
                       Sign out
@@ -506,10 +598,10 @@ function App() {
         />
 
         <Route
-          path="/table"
+          path="/beer-table"
           element={
             isAuthenticated ? (
-              <TablePage onSignOut={clearToken} />
+              <TablePage onSignOut={clearToken} beverage="beer" />
             ) : (
               <main className="page">
                 <form
@@ -547,7 +639,92 @@ function App() {
           }
         />
 
-        <Route path="*" element={<Navigate to="/table" replace />} />
+        <Route
+          path="/cider-table"
+          element={
+            isAuthenticated ? (
+              <TablePage onSignOut={clearToken} beverage="cider" />
+            ) : (
+              <main className="page">
+                <form
+                  className="login-card playful-card"
+                  onSubmit={handleSubmit}
+                >
+                  <h1>Login</h1>
+
+                  <label htmlFor="username">Username</label>
+                  <input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    required
+                  />
+
+                  <label htmlFor="password">Password</label>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    required
+                  />
+
+                  <button type="submit" disabled={loading || isAuthenticated}>
+                    {loading ? "Signing in..." : "Sign in"}
+                  </button>
+
+                  {error && <p className="error">{error}</p>}
+                </form>
+              </main>
+            )
+          }
+        />
+
+        <Route
+          path="/wine-table"
+          element={
+            isAuthenticated ? (
+              <TablePage onSignOut={clearToken} beverage="wine" />
+            ) : (
+              <main className="page">
+                <form
+                  className="login-card playful-card"
+                  onSubmit={handleSubmit}
+                >
+                  <h1>Login</h1>
+
+                  <label htmlFor="username">Username</label>
+                  <input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    required
+                  />
+
+                  <label htmlFor="password">Password</label>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    required
+                  />
+
+                  <button type="submit" disabled={loading || isAuthenticated}>
+                    {loading ? "Signing in..." : "Sign in"}
+                  </button>
+
+                  {error && <p className="error">{error}</p>}
+                </form>
+              </main>
+            )
+          }
+        />
+
+        <Route path="/table" element={<Navigate to="/beer-table" replace />} />
+        <Route path="*" element={<Navigate to="/beer-table" replace />} />
       </Routes>
 
       {toasts.length > 0 && (

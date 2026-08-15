@@ -3,11 +3,99 @@ import { Link } from "react-router-dom";
 import BeerTypeIcon from "../components/BeerTypeIcon";
 
 const USERS_LIST_KEY = "usersList";
-const BEER_LIST_KEY = "beerList";
-const BEER_LIST_WITH_RATINGS_KEY = "beerListWithRatings";
-const BEER_LIST_WITH_AVERAGE_RATINGS_KEY = "beerListWithAverageRatings";
+
+const BEVERAGE_CONFIG = {
+  beer: {
+    key: "beer",
+    label: "Beer",
+    plural: "beers",
+    emoji: "🍺",
+    accent: "#6f5ef5",
+    listKey: "beerList",
+    listRatingsKey: "beerListWithRatings",
+    averageKey: "beerListWithAverageRatings",
+    bucketLabel: "Brewery",
+    productField: "brewery",
+    idField: "beer_id",
+    listEndpoint: "/beers/",
+    ratingsEndpoint: "/beers_with_ratings/",
+    averageEndpoint: "/beers_with_average_ratings/",
+    rateEndpoint: "/rate_beer/",
+    typeOptions: ["Draught", "Can", "Bottle"],
+    extraMetricLabel: "Texture",
+    extraMetricKey: "avg_texture",
+    extraDetailMetricKey: "texture",
+    extraFormKey: "texture",
+    extraScaleWords: [
+      { value: 0, label: "Undrinkable" },
+      { value: 2.5, label: "Unpleasant" },
+      { value: 5, label: "Standard" },
+      { value: 7.5, label: "Pleasant" },
+      { value: 10, label: "Perfect" },
+    ],
+  },
+  cider: {
+    key: "cider",
+    label: "Cider",
+    plural: "ciders",
+    emoji: "🍏",
+    accent: "#198754",
+    listKey: "ciderList",
+    listRatingsKey: "ciderListWithRatings",
+    averageKey: "ciderListWithAverageRatings",
+    bucketLabel: "Brewery",
+    productField: "brewery",
+    idField: "cider_id",
+    listEndpoint: "/ciders/",
+    ratingsEndpoint: "/ciders_with_ratings/",
+    averageEndpoint: "/ciders_with_average_ratings/",
+    rateEndpoint: "/rate_cider/",
+    typeOptions: ["Dry", "Medium", "Sweet"],
+    extraMetricLabel: "Texture",
+    extraMetricKey: "avg_texture",
+    extraDetailMetricKey: "texture",
+    extraFormKey: "texture",
+    extraScaleWords: [
+      { value: 0, label: "Undrinkable" },
+      { value: 2.5, label: "Unpleasant" },
+      { value: 5, label: "Standard" },
+      { value: 7.5, label: "Pleasant" },
+      { value: 10, label: "Perfect" },
+    ],
+  },
+  wine: {
+    key: "wine",
+    label: "Wine",
+    plural: "wines",
+    emoji: "🍷",
+    accent: "#a14373",
+    listKey: "wineList",
+    listRatingsKey: "wineListWithRatings",
+    averageKey: "wineListWithAverageRatings",
+    bucketLabel: "Winery",
+    productField: "winery",
+    idField: "wine_id",
+    listEndpoint: "/wines/",
+    ratingsEndpoint: "/wines_with_ratings/",
+    averageEndpoint: "/wines_with_average_ratings/",
+    rateEndpoint: "/rate_wine/",
+    typeOptions: ["Red", "White", "Rosé", "Sparkling"],
+    extraMetricLabel: "Sessionability",
+    extraMetricKey: "avg_sessionability",
+    extraDetailMetricKey: "sessionability",
+    extraFormKey: "sessionability",
+    extraScaleWords: [
+      { value: 0, label: "Hard to drink" },
+      { value: 2.5, label: "Low" },
+      { value: 5, label: "Balanced" },
+      { value: 7.5, label: "Easy" },
+      { value: 10, label: "Perfect" },
+    ],
+  },
+};
+
 const COLLAPSED_SHEET_HEIGHT = 84;
-const BEER_TYPE_OPTIONS = ["Draught", "Can", "Bottle"];
+
 const BEER_STYLE_OPTIONS = [
   "IPA",
   "Session IPA",
@@ -36,6 +124,71 @@ const BEER_STYLE_OPTIONS = [
   "Lambic",
   "Barleywine",
 ];
+
+const TASTE_SCALE_WORDS = [
+  { value: 0, label: "Undrinkable" },
+  { value: 10, label: "Truly awful" },
+  { value: 20, label: "Bad" },
+  { value: 30, label: "Below average" },
+  { value: 40, label: "Meh" },
+  { value: 50, label: "Average" },
+  { value: 60, label: "Decent" },
+  { value: 70, label: "Good" },
+  { value: 80, label: "Very Good" },
+  { value: 90, label: "Excellent" },
+  { value: 100, label: "World class" },
+];
+
+const VALUE_SCALE_WORDS = [
+  { value: 0, label: "Very Spenny" },
+  { value: 5, label: "Bit Spenny" },
+  { value: 10, label: "About Average" },
+  { value: 15, label: "Bit Cheap" },
+  { value: 20, label: "Mega Cheap" },
+];
+
+const PACKAGING_SCALE_WORDS = [
+  { value: 0, label: "Hate" },
+  { value: 1, label: "Dislike" },
+  { value: 2, label: "It's okay" },
+  { value: 3, label: "Like" },
+  { value: 4, label: "Heavily Like" },
+  { value: 5, label: "Love" },
+];
+
+const SCORE_BOUNDS = {
+  taste: { min: 0, max: 100, label: "Taste" },
+  value: { min: 0, max: 20, label: "Value" },
+  texture: { min: 0, max: 10, label: "Texture" },
+  sessionability: { min: 0, max: 10, label: "Sessionability" },
+  packaging: { min: 0, max: 5, label: "Packaging" },
+};
+
+function validateAndNormalizeScores(form, config) {
+  const fields = ["taste", "value", config.extraFormKey, "packaging"];
+  const normalized = {};
+
+  for (const field of fields) {
+    const bounds = SCORE_BOUNDS[field];
+    const numeric = Number(form[field]);
+
+    if (!bounds || Number.isNaN(numeric)) {
+      return {
+        error: `${SCORE_BOUNDS[field]?.label || field} must be a number between ${bounds?.min ?? 0} and ${bounds?.max ?? 10}.`,
+      };
+    }
+
+    if (numeric < bounds.min || numeric > bounds.max) {
+      return {
+        error: `${bounds.label} must be between ${bounds.min} and ${bounds.max}.`,
+      };
+    }
+
+    normalized[field] = numeric;
+  }
+
+  return { normalized };
+}
 
 function getExpandedSheetHeight() {
   if (typeof window === "undefined") {
@@ -249,75 +402,6 @@ function ScaleHint({ value, points }) {
   );
 }
 
-const TASTE_SCALE_WORDS = [
-  { value: 0, label: "Undrinkable" },
-  { value: 10, label: "Truly awful" },
-  { value: 20, label: "Bad" },
-  { value: 30, label: "Below average" },
-  { value: 40, label: "Meh" },
-  { value: 50, label: "Average" },
-  { value: 60, label: "Decent" },
-  { value: 70, label: "Good" },
-  { value: 80, label: "Very Good" },
-  { value: 90, label: "Excellent" },
-  { value: 100, label: "World class" },
-];
-
-const VALUE_SCALE_WORDS = [
-  { value: 0, label: "Very Spenny" },
-  { value: 5, label: "Bit Spenny" },
-  { value: 10, label: "About Average" },
-  { value: 15, label: "Bit Cheap" },
-  { value: 20, label: "Mega Cheap" },
-];
-
-const TEXTURE_SCALE_WORDS = [
-  { value: 0, label: "Undrinkable" },
-  { value: 2.5, label: "Unpleasant" },
-  { value: 5, label: "Standard" },
-  { value: 7.5, label: "Pleasant" },
-  { value: 10, label: "Perfect" },
-];
-
-const PACKAGING_SCALE_WORDS = [
-  { value: 0, label: "Hate" },
-  { value: 1, label: "Dislike" },
-  { value: 2, label: "It's okay" },
-  { value: 3, label: "Like" },
-  { value: 4, label: "Heavily Like" },
-  { value: 5, label: "Love" },
-];
-
-const SCORE_BOUNDS = {
-  taste: { min: 0, max: 100, label: "Taste" },
-  value: { min: 0, max: 20, label: "Value" },
-  texture: { min: 0, max: 10, label: "Texture" },
-  packaging: { min: 0, max: 5, label: "Packaging" },
-};
-
-function validateAndNormalizeScores(form) {
-  const normalized = {};
-
-  for (const [field, bounds] of Object.entries(SCORE_BOUNDS)) {
-    const numeric = Number(form[field]);
-    if (Number.isNaN(numeric)) {
-      return {
-        error: `${bounds.label} must be a number between ${bounds.min} and ${bounds.max}.`,
-      };
-    }
-
-    if (numeric < bounds.min || numeric > bounds.max) {
-      return {
-        error: `${bounds.label} must be between ${bounds.min} and ${bounds.max}.`,
-      };
-    }
-
-    normalized[field] = numeric;
-  }
-
-  return { normalized };
-}
-
 function getRatedByDisplay(beer) {
   if (!Array.isArray(beer?.rated_by) || beer.rated_by.length === 0) {
     return "-";
@@ -365,33 +449,16 @@ function getContributorsPieStyle(beer, selectedUsers) {
   };
 }
 
-function TablePage({ onSignOut }) {
+function TablePage({ onSignOut, beverage = "beer" }) {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
-  const usersList = useMemo(() => parseStorageJson(USERS_LIST_KEY, []), []);
-  const [beerRatingsList, setBeerRatingsList] = useState(() =>
-    parseStorageJson(BEER_LIST_WITH_RATINGS_KEY, []),
-  );
-  const users = useMemo(
-    () =>
-      usersList
-        .map((u) => ({
-          id: getUserId(u),
-          username: u.username,
-          color: normalizeHexColor(u.color),
-        }))
-        .filter(
-          (u) =>
-            u.id !== null &&
-            typeof u.username === "string" &&
-            !u.username.toLowerCase().includes("admin"),
-        ),
-    [usersList],
-  );
+  const config = BEVERAGE_CONFIG[beverage] || BEVERAGE_CONFIG.beer;
 
+  const usersList = useMemo(() => parseStorageJson(USERS_LIST_KEY, []), []);
+  const [beverageRatingsList, setBeverageRatingsList] = useState([]);
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [averageData, setAverageData] = useState([]);
-  const [expandedBeerId, setExpandedBeerId] = useState(null);
-  const [closingBeerId, setClosingBeerId] = useState(null);
+  const [expandedProductId, setExpandedProductId] = useState(null);
+  const [closingProductId, setClosingProductId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== "undefined"
@@ -418,84 +485,105 @@ function TablePage({ onSignOut }) {
   const [currentUsername, setCurrentUsername] = useState("");
   const [activeSearchInput, setActiveSearchInput] = useState(null);
   const [ratingForm, setRatingForm] = useState({
-    breweryQuery: "",
-    beerQuery: "",
+    producerQuery: "",
+    nameQuery: "",
     styleQuery: "",
     typeQuery: "",
     taste: 0,
     value: 0,
     texture: 0,
+    sessionability: 0,
     packaging: 0,
   });
+
+  const users = useMemo(
+    () =>
+      usersList
+        .map((u) => ({
+          id: getUserId(u),
+          username: u.username,
+          color: normalizeHexColor(u.color),
+        }))
+        .filter(
+          (u) =>
+            u.id !== null &&
+            typeof u.username === "string" &&
+            !u.username.toLowerCase().includes("admin"),
+        ),
+    [usersList],
+  );
+
   const allUsersSelected =
     users.length > 0 && selectedUserIds.length === users.length;
+
   const selectedUsers = useMemo(
     () => users.filter((user) => selectedUserIds.includes(user.id)),
     [selectedUserIds, users],
   );
-  const beerOptions = useMemo(
+
+  // Load the correct local cache whenever the beverage changes.
+  useEffect(() => {
+    setBeverageRatingsList(parseStorageJson(config.listRatingsKey, []));
+    setAverageData([]);
+    setExpandedProductId(null);
+    setClosingProductId(null);
+    setSortKey(null);
+    setSortDirection("none");
+    setRatingError("");
+    setRatingForm({
+      producerQuery: "",
+      nameQuery: "",
+      styleQuery: "",
+      typeQuery: "",
+      taste: 0,
+      value: 0,
+      texture: 0,
+      sessionability: 0,
+      packaging: 0,
+    });
+  }, [config.key, config.listRatingsKey]);
+
+  const productCatalog = useMemo(
     () =>
       averageData
-        .map((beer) => ({
-          id: beer.id,
-          label: `${beer.name} — ${beer.brewery}`,
-        }))
-        .sort((a, b) => a.label.localeCompare(b.label)),
-    [averageData],
-  );
-  const beerCatalog = useMemo(
-    () =>
-      averageData
-        .map((beer) => ({
-          id: beer.id,
-          name: String(beer.name || ""),
-          brewery: String(beer.brewery || ""),
-          style: String(beer.style || ""),
-          type: String(beer.type || ""),
+        .map((product) => ({
+          id: product.id,
+          name: String(product.name || ""),
+          producer: String(product?.[config.productField] || ""),
+          style: String(product.style || ""),
+          type: String(product.type || ""),
         }))
         .sort((a, b) => a.name.localeCompare(b.name)),
-    [averageData],
+    [averageData, config.productField],
   );
-  const brewerySuggestions = useMemo(
+
+  const producerSuggestions = useMemo(
     () =>
-      [...new Set(beerCatalog.map((beer) => beer.brewery))].sort((a, b) =>
-        a.localeCompare(b),
-      ),
-    [beerCatalog],
+      [...new Set(productCatalog.map((product) => product.producer))]
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [productCatalog],
   );
-  const beerSuggestions = useMemo(
+
+  const productSuggestions = useMemo(
     () =>
-      [...new Set(beerCatalog.map((beer) => beer.name))].sort((a, b) =>
-        a.localeCompare(b),
-      ),
-    [beerCatalog],
+      [...new Set(productCatalog.map((product) => product.name))]
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [productCatalog],
   );
-  const filteredBrewerySuggestions = useMemo(() => {
-    const query = ratingForm.breweryQuery.trim().toLowerCase();
-    if (!query) {
-      return brewerySuggestions.slice(0, 8);
-    }
-    return brewerySuggestions
-      .filter((value) => value.toLowerCase().includes(query))
-      .slice(0, 8);
-  }, [brewerySuggestions, ratingForm.breweryQuery]);
-  const filteredBeerSuggestions = useMemo(() => {
-    const query = ratingForm.beerQuery.trim().toLowerCase();
-    if (!query) {
-      return beerSuggestions.slice(0, 8);
-    }
-    return beerSuggestions
-      .filter((value) => value.toLowerCase().includes(query))
-      .slice(0, 8);
-  }, [beerSuggestions, ratingForm.beerQuery]);
+
   const styleOptions = useMemo(() => {
-    const fromCatalog = beerCatalog
-      .map((beer) => beer.style)
-      .filter((style) => Boolean(style && style.trim().length > 0));
+    const fromCatalog = productCatalog
+      .map((product) => product.style)
+      .filter(Boolean);
+
+    const defaults = config.key === "beer" ? BEER_STYLE_OPTIONS : [];
     const uniqueByLower = new Map();
 
-    [...BEER_STYLE_OPTIONS, ...fromCatalog].forEach((style) => {
+    [...defaults, ...fromCatalog].forEach((style) => {
       const normalized = style.trim();
+      if (!normalized) return;
       const key = normalized.toLowerCase();
       if (!uniqueByLower.has(key)) {
         uniqueByLower.set(key, normalized);
@@ -505,92 +593,108 @@ function TablePage({ onSignOut }) {
     return Array.from(uniqueByLower.values()).sort((a, b) =>
       a.localeCompare(b),
     );
-  }, [beerCatalog]);
+  }, [config.key, productCatalog]);
+
+  const filteredProducerSuggestions = useMemo(() => {
+    const query = ratingForm.producerQuery.trim().toLowerCase();
+    if (!query) return producerSuggestions.slice(0, 8);
+
+    return producerSuggestions
+      .filter((value) => value.toLowerCase().includes(query))
+      .slice(0, 8);
+  }, [producerSuggestions, ratingForm.producerQuery]);
+
+  const filteredProductSuggestions = useMemo(() => {
+    const query = ratingForm.nameQuery.trim().toLowerCase();
+    if (!query) return productSuggestions.slice(0, 8);
+
+    return productSuggestions
+      .filter((value) => value.toLowerCase().includes(query))
+      .slice(0, 8);
+  }, [productSuggestions, ratingForm.nameQuery]);
+
   const filteredStyleSuggestions = useMemo(() => {
     const query = ratingForm.styleQuery.trim().toLowerCase();
-    if (!query) {
-      return styleOptions.slice(0, 8);
-    }
+    if (!query) return styleOptions.slice(0, 8);
+
     return styleOptions
       .filter((value) => value.toLowerCase().includes(query))
       .slice(0, 8);
   }, [ratingForm.styleQuery, styleOptions]);
-  const matchedBeers = useMemo(() => {
-    const breweryQuery = ratingForm.breweryQuery.trim().toLowerCase();
-    const beerQuery = ratingForm.beerQuery.trim().toLowerCase();
+
+  const matchedProducts = useMemo(() => {
+    const producerQuery = ratingForm.producerQuery.trim().toLowerCase();
+    const nameQuery = ratingForm.nameQuery.trim().toLowerCase();
     const styleQuery = ratingForm.styleQuery.trim().toLowerCase();
     const typeQuery = normalizeBeerType(ratingForm.typeQuery);
 
-    return beerCatalog.filter((beer) => {
-      const breweryMatch = breweryQuery
-        ? beer.brewery.toLowerCase().includes(breweryQuery)
+    return productCatalog.filter((product) => {
+      const producerMatch = producerQuery
+        ? product.producer.toLowerCase().includes(producerQuery)
         : true;
-      const beerMatch = beerQuery
-        ? beer.name.toLowerCase().includes(beerQuery)
+      const nameMatch = nameQuery
+        ? product.name.toLowerCase().includes(nameQuery)
         : true;
       const styleMatch = styleQuery
-        ? beer.style.toLowerCase().includes(styleQuery)
+        ? product.style.toLowerCase().includes(styleQuery)
         : true;
       const typeMatch = typeQuery
-        ? normalizeBeerType(beer.type) === typeQuery
+        ? normalizeBeerType(product.type) === typeQuery
         : true;
-      return breweryMatch && beerMatch && styleMatch && typeMatch;
+
+      return producerMatch && nameMatch && styleMatch && typeMatch;
     });
   }, [
-    beerCatalog,
-    ratingForm.beerQuery,
-    ratingForm.breweryQuery,
+    productCatalog,
+    ratingForm.nameQuery,
+    ratingForm.producerQuery,
     ratingForm.styleQuery,
     ratingForm.typeQuery,
   ]);
-  const selectedBeerForRating = useMemo(() => {
-    const breweryQuery = ratingForm.breweryQuery.trim().toLowerCase();
-    const beerQuery = ratingForm.beerQuery.trim().toLowerCase();
+
+  const selectedProductForRating = useMemo(() => {
+    const producerQuery = ratingForm.producerQuery.trim().toLowerCase();
+    const nameQuery = ratingForm.nameQuery.trim().toLowerCase();
     const styleQuery = ratingForm.styleQuery.trim().toLowerCase();
     const typeQuery = normalizeBeerType(ratingForm.typeQuery);
 
-    const exactMatches = beerCatalog.filter(
-      (beer) =>
-        beer.brewery.toLowerCase() === breweryQuery &&
-        beer.name.toLowerCase() === beerQuery &&
-        breweryQuery.length > 0 &&
-        beerQuery.length > 0 &&
-        (styleQuery.length === 0 || beer.style.toLowerCase() === styleQuery) &&
-        (typeQuery.length === 0 || normalizeBeerType(beer.type) === typeQuery),
+    const exactMatches = productCatalog.filter(
+      (product) =>
+        product.producer.toLowerCase() === producerQuery &&
+        product.name.toLowerCase() === nameQuery &&
+        producerQuery.length > 0 &&
+        nameQuery.length > 0 &&
+        (styleQuery.length === 0 ||
+          product.style.toLowerCase() === styleQuery) &&
+        (typeQuery.length === 0 ||
+          normalizeBeerType(product.type) === typeQuery),
     );
 
-    if (exactMatches.length === 1) {
-      return exactMatches[0];
-    }
-
-    if (matchedBeers.length === 1) {
-      return matchedBeers[0];
-    }
+    if (exactMatches.length === 1) return exactMatches[0];
+    if (matchedProducts.length === 1) return matchedProducts[0];
 
     return null;
   }, [
-    beerCatalog,
-    matchedBeers,
-    ratingForm.beerQuery,
-    ratingForm.breweryQuery,
+    matchedProducts,
+    productCatalog,
+    ratingForm.nameQuery,
+    ratingForm.producerQuery,
     ratingForm.styleQuery,
     ratingForm.typeQuery,
   ]);
+
   const currentUserId = useMemo(() => {
-    if (!currentUsername) {
-      return null;
-    }
+    if (!currentUsername) return null;
 
     const match = users.find(
       (user) => user.username.toLowerCase() === currentUsername.toLowerCase(),
     );
+
     return match ? Number(match.id) : null;
   }, [currentUsername, users]);
 
   const sortedAverageData = useMemo(() => {
-    if (!sortKey || sortDirection === "none") {
-      return averageData;
-    }
+    if (!sortKey || sortDirection === "none") return averageData;
 
     const rows = [...averageData];
 
@@ -598,6 +702,7 @@ function TablePage({ onSignOut }) {
       if (sortKey === "rated_by") {
         const aValue = getRatedByCount(a);
         const bValue = getRatedByCount(b);
+
         if (aValue !== bValue) {
           const result = aValue - bValue;
           return sortDirection === "asc" ? result : -result;
@@ -610,7 +715,7 @@ function TablePage({ onSignOut }) {
       }
 
       if (
-        sortKey === "brewery" ||
+        sortKey === config.productField ||
         sortKey === "name" ||
         sortKey === "style" ||
         sortKey === "type"
@@ -624,11 +729,12 @@ function TablePage({ onSignOut }) {
       const aValue = toNumber(a?.[sortKey]);
       const bValue = toNumber(b?.[sortKey]);
       const result = aValue - bValue;
+
       return sortDirection === "asc" ? result : -result;
     });
 
     return rows;
-  }, [averageData, sortDirection, sortKey]);
+  }, [averageData, config.productField, sortDirection, sortKey]);
 
   useEffect(() => {
     setSelectedUserIds(users.map((u) => u.id));
@@ -651,6 +757,7 @@ function TablePage({ onSignOut }) {
 
   useEffect(() => {
     if (users.length === 0) return;
+
     if (selectedUserIds.length === 0) {
       setAverageData([]);
       return;
@@ -664,22 +771,28 @@ function TablePage({ onSignOut }) {
     if (token) headers["Authorization"] = `Token ${token}`;
 
     const allSelected = selectedUserIds.length === users.length;
-    let url = `${apiBaseUrl}/beers_with_average_ratings/`;
+    let url = `${apiBaseUrl}${config.averageEndpoint}`;
 
     if (!allSelected) {
       const params = new URLSearchParams();
+
       users
         .filter((u) => selectedUserIds.includes(u.id))
         .forEach((u) => params.append("users", u.username));
+
       url += `?${params.toString()}`;
     }
 
     fetch(url, { headers })
       .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
       .then((data) => {
-        if (!cancelled) setAverageData(data);
+        if (!cancelled) {
+          setAverageData(Array.isArray(data) ? data : []);
+        }
       })
-      .catch((e) => console.error("Failed to fetch averages", e))
+      .catch((e) =>
+        console.error(`Failed to fetch ${config.label} averages`, e),
+      )
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
@@ -687,13 +800,17 @@ function TablePage({ onSignOut }) {
     return () => {
       cancelled = true;
     };
-  }, [apiBaseUrl, ratingsVersion, selectedUserIds, users]);
+  }, [
+    apiBaseUrl,
+    config.averageEndpoint,
+    ratingsVersion,
+    selectedUserIds,
+    users,
+  ]);
 
   useEffect(() => {
     const token = localStorage.getItem("authToken") || "";
-    if (!token) {
-      return;
-    }
+    if (!token) return;
 
     fetch(`${apiBaseUrl}/my-color/`, {
       method: "GET",
@@ -711,16 +828,16 @@ function TablePage({ onSignOut }) {
   }, [apiBaseUrl]);
 
   useEffect(() => {
-    if (!selectedBeerForRating || !currentUserId) {
-      return;
-    }
+    if (!selectedProductForRating || !currentUserId) return;
 
-    const beerRecord = beerRatingsList.find(
-      (beer) => Number(beer?.id) === Number(selectedBeerForRating.id),
+    const productRecord = beverageRatingsList.find(
+      (product) => Number(product?.id) === Number(selectedProductForRating.id),
     );
-    const ratings = Array.isArray(beerRecord?.ratings)
-      ? beerRecord.ratings
+
+    const ratings = Array.isArray(productRecord?.ratings)
+      ? productRecord.ratings
       : [];
+
     const existingRating = [...ratings]
       .reverse()
       .find((rating) => Number(rating?.user?.id) === Number(currentUserId));
@@ -730,7 +847,9 @@ function TablePage({ onSignOut }) {
         ...current,
         taste: Number(existingRating.taste ?? 0),
         value: Number(existingRating.value ?? 0),
-        texture: Number(existingRating.texture ?? 0),
+        [config.extraFormKey]: Number(
+          existingRating[config.extraDetailMetricKey] ?? 0,
+        ),
         packaging: Number(existingRating.packaging ?? 0),
       }));
       return;
@@ -740,10 +859,16 @@ function TablePage({ onSignOut }) {
       ...current,
       taste: 0,
       value: 0,
-      texture: 0,
+      [config.extraFormKey]: 0,
       packaging: 0,
     }));
-  }, [beerRatingsList, currentUserId, selectedBeerForRating]);
+  }, [
+    beverageRatingsList,
+    config.extraDetailMetricKey,
+    config.extraFormKey,
+    currentUserId,
+    selectedProductForRating,
+  ]);
 
   function onSheetPointerDown(event) {
     event.preventDefault();
@@ -754,22 +879,19 @@ function TablePage({ onSignOut }) {
   }
 
   function onSheetPointerMove(event) {
-    if (dragStartY === null) {
-      return;
-    }
+    if (dragStartY === null) return;
 
     const delta = dragStartY - event.clientY;
     const nextHeight = Math.max(
       COLLAPSED_SHEET_HEIGHT,
       Math.min(expandedSheetHeight, dragStartHeight + delta),
     );
+
     setSheetHeight(nextHeight);
   }
 
   function onSheetPointerUp(event) {
-    if (dragStartY === null) {
-      return;
-    }
+    if (dragStartY === null) return;
 
     const endY =
       typeof event?.clientY === "number" ? event.clientY : dragStartY;
@@ -783,7 +905,6 @@ function TablePage({ onSignOut }) {
     }
 
     setSuppressHandleToggle(movedEnoughToDrag);
-
     setDragStartY(null);
     setIsDraggingSheet(false);
   }
@@ -805,12 +926,11 @@ function TablePage({ onSignOut }) {
     const onResize = () => {
       const nextExpandedHeight = getExpandedSheetHeight();
       setExpandedSheetHeight(nextExpandedHeight);
-      setSheetHeight((current) => {
-        if (current <= COLLAPSED_SHEET_HEIGHT) {
-          return COLLAPSED_SHEET_HEIGHT;
-        }
-        return nextExpandedHeight;
-      });
+      setSheetHeight((current) =>
+        current <= COLLAPSED_SHEET_HEIGHT
+          ? COLLAPSED_SHEET_HEIGHT
+          : nextExpandedHeight,
+      );
     };
 
     window.addEventListener("resize", onResize);
@@ -818,9 +938,7 @@ function TablePage({ onSignOut }) {
   }, []);
 
   useEffect(() => {
-    if (dragStartY === null) {
-      return undefined;
-    }
+    if (dragStartY === null) return undefined;
 
     const handleMove = (event) => onSheetPointerMove(event);
     const handleUp = (event) => onSheetPointerUp(event);
@@ -837,9 +955,7 @@ function TablePage({ onSignOut }) {
   }, [dragStartY, dragStartHeight, expandedSheetHeight]);
 
   useEffect(() => {
-    if (!toastMessage) {
-      return undefined;
-    }
+    if (!toastMessage) return undefined;
 
     const timeoutId = window.setTimeout(() => {
       setToastMessage("");
@@ -860,61 +976,57 @@ function TablePage({ onSignOut }) {
     }
 
     const numeric = Number(value);
-    if (Number.isNaN(numeric)) {
-      return;
-    }
+    if (Number.isNaN(numeric)) return;
 
     const { min, max } = SCORE_BOUNDS[field];
     const clamped = Math.max(min, Math.min(max, numeric));
+
     setRatingForm((current) => ({ ...current, [field]: clamped }));
   }
 
-  function applySelectedBeer(beer) {
+  function applySelectedProduct(product) {
     setRatingForm((current) => ({
       ...current,
-      beerQuery: beer.name,
-      breweryQuery: beer.brewery,
-      styleQuery: beer.style,
-      typeQuery: beer.type,
+      nameQuery: product.name,
+      producerQuery: product.producer,
+      styleQuery: product.style,
+      typeQuery: product.type,
     }));
   }
 
-  async function refreshBeerCaches(token) {
+  async function refreshBeverageCaches(token) {
     const headers = token ? { Authorization: `Token ${token}` } : {};
-    const [beerListResponse, beerRatingsResponse, beerAverageRatingsResponse] =
+
+    const [listResponse, ratingsResponse, averageRatingsResponse] =
       await Promise.all([
-        fetch(`${apiBaseUrl}/beers/`, { method: "GET", headers }),
-        fetch(`${apiBaseUrl}/beers_with_ratings/`, { method: "GET", headers }),
-        fetch(`${apiBaseUrl}/beers_with_average_ratings/`, {
+        fetch(`${apiBaseUrl}${config.listEndpoint}`, {
+          method: "GET",
+          headers,
+        }),
+        fetch(`${apiBaseUrl}${config.ratingsEndpoint}`, {
+          method: "GET",
+          headers,
+        }),
+        fetch(`${apiBaseUrl}${config.averageEndpoint}`, {
           method: "GET",
           headers,
         }),
       ]);
 
-    if (
-      !beerListResponse.ok ||
-      !beerRatingsResponse.ok ||
-      !beerAverageRatingsResponse.ok
-    ) {
-      throw new Error("Failed to refresh beer data");
+    if (!listResponse.ok || !ratingsResponse.ok || !averageRatingsResponse.ok) {
+      throw new Error(`Failed to refresh ${config.label.toLowerCase()} data`);
     }
 
-    const [beerList, beerRatings, beerAverageRatings] = await Promise.all([
-      beerListResponse.json(),
-      beerRatingsResponse.json(),
-      beerAverageRatingsResponse.json(),
+    const [list, ratings, averageRatings] = await Promise.all([
+      listResponse.json(),
+      ratingsResponse.json(),
+      averageRatingsResponse.json(),
     ]);
 
-    localStorage.setItem(BEER_LIST_KEY, JSON.stringify(beerList));
-    localStorage.setItem(
-      BEER_LIST_WITH_RATINGS_KEY,
-      JSON.stringify(beerRatings),
-    );
-    localStorage.setItem(
-      BEER_LIST_WITH_AVERAGE_RATINGS_KEY,
-      JSON.stringify(beerAverageRatings),
-    );
-    setBeerRatingsList(Array.isArray(beerRatings) ? beerRatings : []);
+    localStorage.setItem(config.listKey, JSON.stringify(list));
+    localStorage.setItem(config.listRatingsKey, JSON.stringify(ratings));
+    localStorage.setItem(config.averageKey, JSON.stringify(averageRatings));
+    setBeverageRatingsList(Array.isArray(ratings) ? ratings : []);
   }
 
   async function submitRating(event) {
@@ -927,44 +1039,48 @@ function TablePage({ onSignOut }) {
       return;
     }
 
-    const validation = validateAndNormalizeScores(ratingForm);
+    const validation = validateAndNormalizeScores(ratingForm, config);
     if (validation.error) {
       setRatingError(validation.error);
       return;
     }
 
     const resolvedName = String(
-      selectedBeerForRating?.name || ratingForm.beerQuery || "",
-    ).trim();
-    const resolvedBrewery = String(
-      selectedBeerForRating?.brewery || ratingForm.breweryQuery || "",
-    ).trim();
-    const resolvedType = String(
-      selectedBeerForRating?.type || ratingForm.typeQuery || "",
-    ).trim();
-    const resolvedStyle = String(
-      selectedBeerForRating?.style || ratingForm.styleQuery || "",
+      selectedProductForRating?.name || ratingForm.nameQuery || "",
     ).trim();
 
-    if (!resolvedName || !resolvedBrewery || !resolvedType || !resolvedStyle) {
+    const resolvedProducer = String(
+      selectedProductForRating?.producer || ratingForm.producerQuery || "",
+    ).trim();
+
+    const resolvedType = String(
+      selectedProductForRating?.type || ratingForm.typeQuery || "",
+    ).trim();
+
+    const resolvedStyle = String(
+      selectedProductForRating?.style || ratingForm.styleQuery || "",
+    ).trim();
+
+    if (!resolvedName || !resolvedProducer || !resolvedType || !resolvedStyle) {
       setRatingError(
-        "Please provide name, brewery, type and style before saving.",
+        `Please provide name, ${config.bucketLabel.toLowerCase()}, type and style before saving.`,
       );
       return;
     }
 
     const payload = {
-      beer_id: Number(selectedBeerForRating?.id) || undefined,
+      [config.idField]: Number(selectedProductForRating?.id) || undefined,
       name: resolvedName,
-      brewery: resolvedBrewery,
+      [config.productField]: resolvedProducer,
       type: resolvedType,
       style: resolvedStyle,
       ...validation.normalized,
     };
 
     setSavingRating(true);
+
     try {
-      const response = await fetch(`${apiBaseUrl}/rate_beer/`, {
+      const response = await fetch(`${apiBaseUrl}${config.rateEndpoint}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -985,50 +1101,39 @@ function TablePage({ onSignOut }) {
       if (!response.ok) {
         const errorMessage =
           apiMessage || "Could not save rating. Please try again.";
+
         setRatingError(errorMessage);
         setToastType("error");
         setToastMessage(errorMessage);
         return;
       }
 
-      await refreshBeerCaches(token);
+      try {
+        await refreshBeverageCaches(token);
+      } catch {
+        // The rating request succeeded even if refreshing the cache failed.
+      }
+
       setRatingsVersion((current) => current + 1);
       setSheetHeight(COLLAPSED_SHEET_HEIGHT);
       setToastType("success");
       setToastMessage(apiMessage || "Rating saved");
 
-      // Clear the form after successful submission
       setRatingForm({
-        breweryQuery: "",
-        beerQuery: "",
+        producerQuery: "",
+        nameQuery: "",
         styleQuery: "",
         typeQuery: "",
         taste: 0,
         value: 0,
         texture: 0,
+        sessionability: 0,
         packaging: 0,
       });
-    } catch (err) {
-      // Only show error if it's not from the cache refresh (rating was still saved)
-      if (err?.message === "Failed to refresh beer data") {
-        setRatingsVersion((current) => current + 1);
-        setToastType("success");
-        setToastMessage("Rating saved");
-        setRatingForm({
-          breweryQuery: "",
-          beerQuery: "",
-          styleQuery: "",
-          typeQuery: "",
-          taste: 0,
-          value: 0,
-          texture: 0,
-          packaging: 0,
-        });
-      } else {
-        setRatingError("Could not save rating. Please try again.");
-        setToastType("error");
-        setToastMessage("Could not save rating. Please try again.");
-      }
+    } catch {
+      setRatingError("Could not save rating. Please try again.");
+      setToastType("error");
+      setToastMessage("Could not save rating. Please try again.");
     } finally {
       setSavingRating(false);
     }
@@ -1037,9 +1142,8 @@ function TablePage({ onSignOut }) {
   function toggleUser(userId) {
     setSelectedUserIds((current) => {
       const allSelected = current.length === users.length && users.length > 0;
-      if (allSelected) {
-        return [userId];
-      }
+
+      if (allSelected) return [userId];
 
       return current.includes(userId)
         ? current.filter((id) => id !== userId)
@@ -1069,9 +1173,7 @@ function TablePage({ onSignOut }) {
   }
 
   function renderSortIndicator(key) {
-    if (sortKey !== key || sortDirection === "none") {
-      return "⇅";
-    }
+    if (sortKey !== key || sortDirection === "none") return "⇅";
     return sortDirection === "asc" ? "▴" : "▾";
   }
 
@@ -1080,20 +1182,21 @@ function TablePage({ onSignOut }) {
     return `sortable-header ${active ? "active" : ""}`;
   }
 
-  function toggleBeerExpansion(beerId) {
-    if (expandedBeerId === beerId) {
-      // Closing - set closing state and delay the actual close
-      setClosingBeerId(beerId);
+  function toggleProductExpansion(productId) {
+    if (expandedProductId === productId) {
+      setClosingProductId(productId);
       setTimeout(() => {
-        setExpandedBeerId(null);
-        setClosingBeerId(null);
-      }, 300); // Match animation duration
+        setExpandedProductId(null);
+        setClosingProductId(null);
+      }, 300);
     } else {
-      // Opening
-      setClosingBeerId(null);
-      setExpandedBeerId(beerId);
+      setClosingProductId(null);
+      setExpandedProductId(productId);
     }
   }
+
+  const extraMetricValue = (product) => product?.[config.extraMetricKey];
+  const extraDetailValue = (rating) => rating?.[config.extraDetailMetricKey];
 
   return (
     <main
@@ -1122,7 +1225,9 @@ function TablePage({ onSignOut }) {
 
       <section className="table-shell playful-card">
         <div className="table-header">
-          <h1>Beer Ratings 🍺</h1>
+          <h1>
+            {config.label} Ratings {config.emoji}
+          </h1>
         </div>
 
         {users.length > 0 && (
@@ -1177,19 +1282,19 @@ function TablePage({ onSignOut }) {
               <thead>
                 <tr>
                   <th
-                    className={headerClass("brewery")}
-                    onClick={() => toggleSort("brewery")}
+                    className={headerClass(config.productField)}
+                    onClick={() => toggleSort(config.productField)}
                   >
-                    Brewery{" "}
+                    {config.bucketLabel}{" "}
                     <span className="sort-indicator">
-                      {renderSortIndicator("brewery")}
+                      {renderSortIndicator(config.productField)}
                     </span>
                   </th>
                   <th
                     className={headerClass("name")}
                     onClick={() => toggleSort("name")}
                   >
-                    Beer{" "}
+                    {config.label}{" "}
                     <span className="sort-indicator">
                       {renderSortIndicator("name")}
                     </span>
@@ -1249,15 +1354,17 @@ function TablePage({ onSignOut }) {
                     </span>
                   </th>
                   <th
-                    className={headerClass("avg_texture")}
-                    onClick={() => toggleSort("avg_texture")}
+                    className={headerClass(config.extraMetricKey)}
+                    onClick={() => toggleSort(config.extraMetricKey)}
                   >
-                    <span className="rating-label">Texture</span>
+                    <span className="rating-label">
+                      {config.extraMetricLabel}
+                    </span>
                     <span className="rating-icon" aria-hidden="true">
-                      🫧
+                      {config.key === "wine" ? "🍷" : "🫧"}
                     </span>{" "}
                     <span className="sort-indicator">
-                      {renderSortIndicator("avg_texture")}
+                      {renderSortIndicator(config.extraMetricKey)}
                     </span>
                   </th>
                   <th
@@ -1286,26 +1393,29 @@ function TablePage({ onSignOut }) {
                   </th>
                 </tr>
               </thead>
+
               <tbody>
-                {sortedAverageData.map((beer) => {
-                  const isExpanded = expandedBeerId === beer.id;
-                  const isClosing = closingBeerId === beer.id;
+                {sortedAverageData.map((product) => {
+                  const isExpanded = expandedProductId === product.id;
+                  const isClosing = closingProductId === product.id;
                   const showDetails = isExpanded || isClosing;
                   const hasMultipleRatings =
-                    Array.isArray(beer.ratings) && beer.ratings.length > 1;
+                    Array.isArray(product.ratings) &&
+                    product.ratings.length > 1;
 
                   return (
-                    <Fragment key={beer.id}>
+                    <Fragment key={product.id}>
                       <tr
                         onClick={() =>
-                          hasMultipleRatings && toggleBeerExpansion(beer.id)
+                          hasMultipleRatings &&
+                          toggleProductExpansion(product.id)
                         }
                         style={{
                           cursor: hasMultipleRatings ? "pointer" : "default",
                         }}
                         className={isExpanded ? "expanded-row" : ""}
                       >
-                        <td>{beer.brewery}</td>
+                        <td>{product?.[config.productField]}</td>
                         <td>
                           {isExpanded && (
                             <span
@@ -1314,11 +1424,15 @@ function TablePage({ onSignOut }) {
                               ▼
                             </span>
                           )}
-                          {beer.name}
+                          {product.name}
                         </td>
-                        <td className="style-column">{beer.style}</td>
+                        <td className="style-column">{product.style}</td>
                         <td>
-                          <BeerTypeIcon type={beer.type} size={24} />
+                          {config.key === "beer" ? (
+                            <BeerTypeIcon type={product.type} size={24} />
+                          ) : (
+                            <span title={product.type}>{product.type}</span>
+                          )}
                         </td>
                         <td>
                           {selectedUsers.length === 0 ? (
@@ -1327,10 +1441,10 @@ function TablePage({ onSignOut }) {
                             <span
                               className="contributors-pie"
                               style={getContributorsPieStyle(
-                                beer,
+                                product,
                                 selectedUsers,
                               )}
-                              title={getRatedByDisplay(beer)}
+                              title={getRatedByDisplay(product)}
                             />
                           ) : (
                             <div
@@ -1341,16 +1455,20 @@ function TablePage({ onSignOut }) {
                             >
                               {selectedUsers.map((user) => {
                                 const contributed = hasUserContributed(
-                                  beer,
+                                  product,
                                   user.username,
                                 );
                                 const color = getUserColor(user);
 
                                 return (
                                   <span
-                                    key={`${beer.id}-${user.id}`}
-                                    className={`contributor-block ${contributed ? "active" : "inactive"}`}
-                                    title={`${user.username}: ${contributed ? "rated" : "not rated"}`}
+                                    key={`${product.id}-${user.id}`}
+                                    className={`contributor-block ${
+                                      contributed ? "active" : "inactive"
+                                    }`}
+                                    title={`${user.username}: ${
+                                      contributed ? "rated" : "not rated"
+                                    }`}
                                     style={{
                                       borderColor: color,
                                       backgroundColor: contributed
@@ -1366,25 +1484,31 @@ function TablePage({ onSignOut }) {
                             </div>
                           )}
                         </td>
-                        <td style={getScoreCellStyle(beer.avg_taste, 100)}>
-                          {fmt(beer.avg_taste, isMobile)}
+                        <td style={getScoreCellStyle(product.avg_taste, 100)}>
+                          {fmt(product.avg_taste, isMobile)}
                         </td>
-                        <td style={getScoreCellStyle(beer.avg_value, 20)}>
-                          {fmt(beer.avg_value, isMobile)}
+                        <td style={getScoreCellStyle(product.avg_value, 20)}>
+                          {fmt(product.avg_value, isMobile)}
                         </td>
-                        <td style={getScoreCellStyle(beer.avg_texture, 10)}>
-                          {fmt(beer.avg_texture, isMobile)}
+                        <td
+                          style={getScoreCellStyle(
+                            extraMetricValue(product),
+                            10,
+                          )}
+                        >
+                          {fmt(extraMetricValue(product), isMobile)}
                         </td>
-                        <td style={getScoreCellStyle(beer.avg_packaging, 5)}>
-                          {fmt(beer.avg_packaging, isMobile)}
+                        <td style={getScoreCellStyle(product.avg_packaging, 5)}>
+                          {fmt(product.avg_packaging, isMobile)}
                         </td>
-                        <td style={getScoreCellStyle(beer.avg_overall, 100)}>
-                          {fmt(beer.avg_overall, isMobile)}
+                        <td style={getScoreCellStyle(product.avg_overall, 100)}>
+                          {fmt(product.avg_overall, isMobile)}
                         </td>
                       </tr>
+
                       {showDetails &&
                         hasMultipleRatings &&
-                        beer.ratings.map((rating) => {
+                        product.ratings.map((rating) => {
                           const user = selectedUsers.find(
                             (u) => u.username === rating.user,
                           );
@@ -1394,8 +1518,10 @@ function TablePage({ onSignOut }) {
 
                           return (
                             <tr
-                              key={`${beer.id}-${rating.user_id}`}
-                              className={`detail-row ${isClosing ? "closing" : "opening"}`}
+                              key={`${product.id}-${rating.user_id}`}
+                              className={`detail-row ${
+                                isClosing ? "closing" : "opening"
+                              }`}
                             >
                               <td
                                 style={{
@@ -1416,8 +1542,13 @@ function TablePage({ onSignOut }) {
                               <td style={getScoreCellStyle(rating.value, 20)}>
                                 {fmt(rating.value, isMobile)}
                               </td>
-                              <td style={getScoreCellStyle(rating.texture, 10)}>
-                                {fmt(rating.texture, isMobile)}
+                              <td
+                                style={getScoreCellStyle(
+                                  extraDetailValue(rating),
+                                  10,
+                                )}
+                              >
+                                {fmt(extraDetailValue(rating), isMobile)}
                               </td>
                               <td
                                 style={getScoreCellStyle(rating.packaging, 5)}
@@ -1442,69 +1573,83 @@ function TablePage({ onSignOut }) {
       </section>
 
       <section
-        className={`rating-sheet playful-card ${isDraggingSheet ? "dragging" : ""} ${sheetHeight <= COLLAPSED_SHEET_HEIGHT + 2 ? "collapsed" : ""}`}
+        className={`rating-sheet playful-card ${
+          isDraggingSheet ? "dragging" : ""
+        } ${sheetHeight <= COLLAPSED_SHEET_HEIGHT + 2 ? "collapsed" : ""}`}
         style={{ height: `${sheetHeight}px` }}
       >
-        <button
-          type="button"
-          className="rating-sheet-handle"
-          onPointerDown={onSheetPointerDown}
-          onClick={onSheetHandleClick}
-          aria-label="Drag rating panel"
-        >
-          <span className="rating-sheet-grip" />
-          <span>Rate a Beer</span>
-        </button>
+        <form onSubmit={submitRating}>
+          <button
+            type="button"
+            className="rating-sheet-handle"
+            onPointerDown={onSheetPointerDown}
+            onClick={onSheetHandleClick}
+            aria-label="Drag rating panel"
+            style={{
+              background: `${config.accent}12`,
+              borderColor: `${config.accent}55`,
+              color: config.accent,
+            }}
+          >
+            <span
+              className="rating-sheet-grip"
+              style={{ background: config.accent }}
+            />
+            <span>{`Rate a ${config.label}`}</span>
+          </button>
 
-        <form className="rating-sheet-form" onSubmit={submitRating}>
-          <label htmlFor="sheet-beer-search">Name</label>
+          <label htmlFor="sheet-product-search">{config.label}</label>
           <div className="search-field">
             <input
-              id="sheet-beer-search"
+              id="sheet-product-search"
               type="text"
-              placeholder="Search beer"
-              value={ratingForm.beerQuery}
-              onFocus={() => setActiveSearchInput("beer")}
+              placeholder={`Search ${config.label.toLowerCase()}`}
+              value={ratingForm.nameQuery}
+              onFocus={() => setActiveSearchInput("name")}
               onBlur={() =>
                 setTimeout(
                   () =>
                     setActiveSearchInput((current) =>
-                      current === "beer" ? null : current,
+                      current === "name" ? null : current,
                     ),
                   100,
                 )
               }
               onChange={(event) => {
-                setActiveSearchInput("beer");
-                updateRatingField("beerQuery", event.target.value);
+                setActiveSearchInput("name");
+                updateRatingField("nameQuery", event.target.value);
               }}
             />
-            {activeSearchInput === "beer" &&
-              filteredBeerSuggestions.length > 0 && (
+
+            {activeSearchInput === "name" &&
+              filteredProductSuggestions.length > 0 && (
                 <ul
                   className="search-suggestions"
                   role="listbox"
-                  aria-label="Beer suggestions"
+                  aria-label={`${config.label} suggestions`}
                 >
-                  {filteredBeerSuggestions.map((beer) => (
-                    <li key={beer}>
+                  {filteredProductSuggestions.map((productName) => (
+                    <li key={productName}>
                       <button
                         type="button"
                         className="search-suggestion-item"
                         onMouseDown={(event) => {
                           event.preventDefault();
-                          const selected = beerCatalog.find(
-                            (candidate) => candidate.name === beer,
+
+                          const selected = productCatalog.find(
+                            (candidate) => candidate.name === productName,
                           );
+
                           if (selected) {
-                            applySelectedBeer(selected);
+                            applySelectedProduct(selected);
                           } else {
-                            updateRatingField("beerQuery", beer);
+                            updateRatingField("nameQuery", productName);
                           }
+
                           setActiveSearchInput(null);
                         }}
                       >
-                        {beer}
+                        {productName}
                       </button>
                     </li>
                   ))}
@@ -1512,50 +1657,48 @@ function TablePage({ onSignOut }) {
               )}
           </div>
 
-          <label htmlFor="sheet-brewery-search">Brewery</label>
+          <label htmlFor="sheet-producer-search">{config.bucketLabel}</label>
           <div className="search-field">
             <input
-              id="sheet-brewery-search"
+              id="sheet-producer-search"
               type="text"
-              placeholder="Search brewery"
-              value={ratingForm.breweryQuery}
-              onFocus={() => setActiveSearchInput("brewery")}
+              placeholder={`Search ${config.bucketLabel.toLowerCase()}`}
+              value={ratingForm.producerQuery}
+              onFocus={() => setActiveSearchInput("producer")}
               onBlur={() =>
                 setTimeout(
                   () =>
                     setActiveSearchInput((current) =>
-                      current === "brewery" ? null : current,
+                      current === "producer" ? null : current,
                     ),
                   100,
                 )
               }
               onChange={(event) => {
-                setActiveSearchInput("brewery");
-                updateRatingField("breweryQuery", event.target.value);
+                setActiveSearchInput("producer");
+                updateRatingField("producerQuery", event.target.value);
               }}
             />
-            {activeSearchInput === "brewery" &&
-              filteredBrewerySuggestions.length > 0 && (
+
+            {activeSearchInput === "producer" &&
+              filteredProducerSuggestions.length > 0 && (
                 <ul
                   className="search-suggestions"
                   role="listbox"
-                  aria-label="Brewery suggestions"
+                  aria-label={`${config.bucketLabel} suggestions`}
                 >
-                  {filteredBrewerySuggestions.map((brewery) => (
-                    <li key={brewery}>
+                  {filteredProducerSuggestions.map((producer) => (
+                    <li key={producer}>
                       <button
                         type="button"
                         className="search-suggestion-item"
                         onMouseDown={(event) => {
                           event.preventDefault();
-                          setRatingForm((current) => ({
-                            ...current,
-                            breweryQuery: brewery,
-                          }));
+                          updateRatingField("producerQuery", producer);
                           setActiveSearchInput(null);
                         }}
                       >
-                        {brewery}
+                        {producer}
                       </button>
                     </li>
                   ))}
@@ -1585,6 +1728,7 @@ function TablePage({ onSignOut }) {
                 updateRatingField("styleQuery", event.target.value);
               }}
             />
+
             {activeSearchInput === "style" &&
               filteredStyleSuggestions.length > 0 && (
                 <ul
@@ -1612,8 +1756,12 @@ function TablePage({ onSignOut }) {
           </div>
 
           <label>Type</label>
-          <div className="type-select-row" role="group" aria-label="Beer type">
-            {BEER_TYPE_OPTIONS.map((typeOption) => {
+          <div
+            className="type-select-row"
+            role="group"
+            aria-label={`${config.label} type`}
+          >
+            {config.typeOptions.map((typeOption) => {
               const normalizedOption = normalizeBeerType(typeOption);
               const selected =
                 normalizeBeerType(ratingForm.typeQuery) === normalizedOption;
@@ -1634,9 +1782,9 @@ function TablePage({ onSignOut }) {
           </div>
 
           <p className="rating-sheet-match">
-            {selectedBeerForRating
-              ? `Selected: ${selectedBeerForRating.name} — ${selectedBeerForRating.brewery}`
-              : `${matchedBeers.length} matching beers`}
+            {selectedProductForRating
+              ? `Selected: ${selectedProductForRating.name} — ${selectedProductForRating.producer}`
+              : `${matchedProducts.length} matching ${config.plural}`}
           </p>
 
           <div className="rating-sheet-grid">
@@ -1659,6 +1807,7 @@ function TablePage({ onSignOut }) {
                 />
               </div>
             </label>
+
             <label>
               Value (0-20)
               <div className="rating-score-row">
@@ -1678,25 +1827,30 @@ function TablePage({ onSignOut }) {
                 />
               </div>
             </label>
+
             <label>
-              Texture (0-10)
+              {config.extraMetricLabel} (0-10)
               <div className="rating-score-row">
                 <input
                   type="number"
                   min="0"
                   max="10"
-                  value={ratingForm.texture}
-                  style={getRatingInputStyle(ratingForm.texture, 10)}
+                  value={ratingForm[config.extraFormKey]}
+                  style={getRatingInputStyle(
+                    ratingForm[config.extraFormKey],
+                    10,
+                  )}
                   onChange={(event) =>
-                    updateRatingField("texture", event.target.value)
+                    updateRatingField(config.extraFormKey, event.target.value)
                   }
                 />
                 <ScaleHint
-                  value={ratingForm.texture}
-                  points={TEXTURE_SCALE_WORDS}
+                  value={ratingForm[config.extraFormKey]}
+                  points={config.extraScaleWords}
                 />
               </div>
             </label>
+
             <label>
               Packaging (0-5)
               <div className="rating-score-row">

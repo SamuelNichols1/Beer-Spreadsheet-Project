@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from django.utils.html import format_html
 
-from api.api.models import Beer, Rating, UserProfile
+from api.api.models import Beer, BeerRating, Wine, WineRating, Cider, CiderRating, UserProfile
 
 
 @admin.register(Beer)
@@ -11,9 +11,29 @@ class BeerAdmin(admin.ModelAdmin):
 	list_display = ("id", "name", "brewery", "type", "style")
 
 
-@admin.register(Rating)
-class RatingAdmin(admin.ModelAdmin):
+@admin.register(BeerRating)
+class BeerRatingAdmin(admin.ModelAdmin):
 	list_display = ("id", "beer", "user", "taste", "value", "texture", "packaging", "overall")
+
+@admin.register(Wine)
+class WineAdmin(admin.ModelAdmin):
+	list_display = ("id", "name", "winery", "type", "style")
+
+
+@admin.register(WineRating)
+class WineRatingAdmin(admin.ModelAdmin):
+	list_display = ("id", "wine", "user", "taste", "value", "sessionability", "packaging", "overall")
+
+
+@admin.register(Cider)
+class CiderAdmin(admin.ModelAdmin):
+	list_display = ("id", "name", "brewery", "type", "style")
+
+
+@admin.register(CiderRating)
+class CiderRatingAdmin(admin.ModelAdmin):
+	list_display = ("id", "cider", "user", "taste", "value", "texture", "packaging", "overall")
+
 
 
 @admin.register(UserProfile)
