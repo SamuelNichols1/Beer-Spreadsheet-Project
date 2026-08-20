@@ -13,7 +13,7 @@
     # Serve Django static files (admin CSS/JS, etc.)
     handle /static/* {
         root * /app/staticfiles
-        fileserver
+        file_server
     }
 
     # Everything else goes to the React app.
