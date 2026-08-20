@@ -11,7 +11,7 @@
     }
 
     # Serve Django static files (admin CSS/JS, etc.)
-    handle_path /static/* {
+    handle /static/* {
         root * /app/staticfiles
         fileserver
     }
