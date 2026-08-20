@@ -12,7 +12,8 @@
 
     # Serve Django static files (admin CSS/JS, etc.)
     handle_path /static/* {
-        reverse_proxy backend:8000
+        root * /app/staticfiles
+        fileserver
     }
 
     # Everything else goes to the React app.
