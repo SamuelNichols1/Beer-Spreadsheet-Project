@@ -14,6 +14,7 @@ services:
       DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS:-http://ratings.beer, https://ratings.beer}
     volumes:
       - ./Beer_Spreadsheet/db.sqlite3:/app/db.sqlite3
+      - staticfiles:/app/staticfiles
     restart: unless-stopped
 
   frontend:
@@ -22,6 +23,8 @@ services:
       dockerfile: Dockerfile.prod
       args:
         VITE_API_BASE_URL: /api
+    volumes:
+      - staticfiles:/app/staticfiles
     restart: unless-stopped
 
   caddy:
@@ -35,6 +38,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
+      - staticfiles:/app/staticfiles
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./certs:/certs:ro
       - caddy_data:/data
@@ -44,3 +48,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  staticfiles:
