@@ -714,6 +714,11 @@ button:disabled {
     padding: 8px;
   }
 
+  .rating-sheet-form input,
+  .rating-sheet-form select {
+    font-size: 16px;
+  }
+
   .rating-sheet-grid {
     grid-template-columns: repeat(1, minmax(0, 1fr));
   }
