@@ -433,6 +433,12 @@ function ScorePickerStyles() {
       .score-bucket.has-value:not(.open) {
         background: color-mix(in srgb, var(--score-accent, #6f5ef5) 18%, #ffffff);
       }
+      .score-bucket-back {
+        padding: 6px 14px;
+        font-size: 1rem;
+        font-weight: 700;
+        line-height: 1;
+      }
       /* Buckets other than the one selected shrink away to nothing instead
          of being removed outright, so the collapse itself is animated —
          and their margin collapses to zero too, so no leftover gap. These
@@ -601,9 +607,15 @@ function ScoreBucketPicker({ value, min, max, accent, points, onSelect }) {
   const rowItems = [];
   for (let level = 0; level < path.length; level += 1) {
     const [parentLo, parentHi] = level === 0 ? [min, max] : path[level - 1];
+    // Only the most recently committed level shows as the visible "chip" —
+    // a single back arrow, regardless of how many levels deep we are.
+    // Earlier committed levels collapse away like their passed-over
+    // siblings instead of staying visible as separate breadcrumbs.
+    const isLastLevel = level === path.length - 1;
     buildChunks(parentLo, parentHi).forEach(([cLo, cHi]) => {
       const isChosen = cLo === path[level][0] && cHi === path[level][1];
-      rowItems.push({ lo: cLo, hi: cHi, role: isChosen ? "chip" : "ghost", level });
+      const role = isChosen && isLastLevel ? "chip" : "ghost";
+      rowItems.push({ lo: cLo, hi: cHi, role, level });
     });
   }
 
@@ -653,14 +665,14 @@ function ScoreBucketPicker({ value, min, max, accent, points, onSelect }) {
             >
               <button
                 type="button"
-                className={`score-bucket ${isChip ? "open" : ""} ${hasValue ? "has-value" : ""}`}
+                className={`score-bucket ${isChip ? "open score-bucket-back" : ""} ${hasValue ? "has-value" : ""}`}
                 aria-expanded={isChip}
+                aria-label={isChip ? "Back" : undefined}
                 onClick={() => (isChip ? goBackTo(level) : selectChunk(lo, hi))}
               >
-                {bucketLabel(lo, hi, max)}
-                {isChip ? " ✕" : ""}
+                {isChip ? "‹" : bucketLabel(lo, hi, max)}
               </button>
-              {wordLabelByValue[lo] && (
+              {!isChip && wordLabelByValue[lo] && (
                 <span className="score-bucket-label">{wordLabelByValue[lo]}</span>
               )}
             </div>
