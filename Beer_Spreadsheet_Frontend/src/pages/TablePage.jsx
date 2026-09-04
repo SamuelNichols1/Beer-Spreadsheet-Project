@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, Fragment } from "react";
+import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { Link } from "react-router-dom";
 import BeerTypeIcon from "../components/BeerTypeIcon";
 
@@ -381,11 +381,19 @@ function getScoreCellStyle(value, maxValue) {
 function ScorePickerStyles() {
   return (
     <style>{`
-      .score-picker { display: flex; flex-direction: column; gap: 8px; }
+      .score-picker {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+        min-width: 0;
+      }
       .score-bucket-row, .score-pill-row {
         display: flex;
         flex-wrap: wrap;
         align-items: flex-start;
+        width: 100%;
+        min-width: 0;
         /* No 'gap' here on purpose — with items collapsing to zero width
            a flex 'gap' still reserves space for every item pair, which is
            what caused the big empty band between the selected chip and the
@@ -396,6 +404,7 @@ function ScorePickerStyles() {
         display: flex;
         flex-direction: column;
         align-items: center;
+        max-width: 100%;
         margin: 0 6px 6px 0;
         transition:
           max-width 260ms ease,
@@ -411,6 +420,7 @@ function ScorePickerStyles() {
         font-size: 0.85rem;
         line-height: 1;
         cursor: pointer;
+        max-width: 100%;
         white-space: nowrap;
         transition: background-color 150ms ease, color 150ms ease, transform 100ms ease;
       }
@@ -562,11 +572,17 @@ function ScoreBucketPicker({ value, min, max, accent, points, onSelect }) {
   const [path, setPath] = useState(() =>
     numericValue ? computeChunkPath(min, max, numericValue) : [],
   );
+  const userChangedValue = useRef(false);
 
   // Keep the drill-down path in sync when the value changes for reasons
   // other than the user tapping something in this component (e.g.
   // switching to a product that already has a saved rating).
   useEffect(() => {
+    if (userChangedValue.current) {
+      userChangedValue.current = false;
+      return;
+    }
+
     setPath(numericValue ? computeChunkPath(min, max, numericValue) : []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [numericValue, min, max]);
@@ -587,6 +603,7 @@ function ScoreBucketPicker({ value, min, max, accent, points, onSelect }) {
   const accentStyle = { "--score-accent": accent };
 
   function selectChunk(lo, hi) {
+    userChangedValue.current = true;
     onSelect(lo);
     if (hi > lo) {
       setPath((current) => [...current, [lo, hi]]);
