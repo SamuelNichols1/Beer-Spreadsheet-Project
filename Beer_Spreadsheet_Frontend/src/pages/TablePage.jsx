@@ -125,6 +125,57 @@ const BEER_STYLE_OPTIONS = [
   "Barleywine",
 ];
 
+const COUNTRY_OPTIONS = [];
+const REGION_OPTIONS = [];
+
+// Dummy local "known product" datasets used to power the lookup/autofill
+// experience. Swap these arrays out for the real datasets whenever they're
+// ready — the shape (name/producer/style/type[/country]) is all that
+// matters, everything downstream reads from this shape.
+const KNOWN_PRODUCTS = {
+  beer: [
+    { name: "Stella Artois", producer: "AB InBev", style: "Pilsner", type: "Bottle" },
+    { name: "Guinness Draught", producer: "Diageo", style: "Stout", type: "Draught" },
+    { name: "Corona Extra", producer: "Grupo Modelo", style: "Lager", type: "Bottle" },
+    { name: "Peroni Nastro Azzurro", producer: "Asahi", style: "Lager", type: "Bottle" },
+    { name: "Punk IPA", producer: "BrewDog", style: "IPA", type: "Can" },
+    { name: "Heineken", producer: "Heineken N.V.", style: "Lager", type: "Can" },
+    { name: "Camden Hells", producer: "Camden Town Brewery", style: "Helles", type: "Can" },
+    { name: "Neck Oil", producer: "Beavertown Brewery", style: "Session Pale", type: "Can" },
+    { name: "London Pride", producer: "Fuller's", style: "Amber Ale", type: "Draught" },
+    { name: "Asahi Super Dry", producer: "Asahi", style: "Lager", type: "Can" },
+    { name: "Estrella Damm", producer: "Damm", style: "Lager", type: "Bottle" },
+    { name: "Sierra Nevada Pale Ale", producer: "Sierra Nevada", style: "Pale Ale", type: "Bottle" },
+    { name: "Guinness 0.0", producer: "Diageo", style: "Stout", type: "Can" },
+    { name: "Brooklyn Lager", producer: "Brooklyn Brewery", style: "Amber Ale", type: "Bottle" },
+    { name: "Jaipur", producer: "Thornbridge Brewery", style: "IPA", type: "Can" },
+  ],
+  cider: [
+    { name: "Strongbow Original", producer: "Heineken UK", style: "Medium", type: "Can" },
+    { name: "Berries & Cherries", producer: "Old Mout", style: "Sweet", type: "Bottle" },
+    { name: "Aspall Draught", producer: "Aspall", style: "Dry", type: "Draught" },
+    { name: "Mixed Fruit", producer: "Kopparberg", style: "Sweet", type: "Bottle" },
+    { name: "Strawberry-Lime", producer: "Rekorderlig", style: "Sweet", type: "Bottle" },
+    { name: "Thatchers Gold", producer: "Thatchers Cider", style: "Medium", type: "Can" },
+    { name: "Stowford Press", producer: "Westons Cider", style: "Medium", type: "Bottle" },
+    { name: "Bulmers Original", producer: "Heineken Ireland", style: "Sweet", type: "Can" },
+    { name: "Crisp Apple", producer: "Angry Orchard", style: "Sweet", type: "Bottle" },
+    { name: "Reveller", producer: "Orchard Pig", style: "Dry", type: "Bottle" },
+  ],
+  wine: [
+    { name: "Yellow Tail Shiraz", producer: "Casella Family Brands", style: "Shiraz", type: "Red", country: "Australia" },
+    { name: "Barefoot Pinot Grigio", producer: "Barefoot Wine & Bubbly", style: "Pinot Grigio", type: "White", country: "USA" },
+    { name: "Whispering Angel", producer: "Château d'Esclans", style: "Rosé Blend", type: "Rosé", country: "France" },
+    { name: "Impérial Brut", producer: "Moët & Chandon", style: "Champagne Blend", type: "Sparkling", country: "France" },
+    { name: "Sauvignon Blanc", producer: "Oyster Bay Wines", style: "Sauvignon Blanc", type: "White", country: "New Zealand" },
+    { name: "Rioja Reserva", producer: "Campo Viejo", style: "Tempranillo", type: "Red", country: "Spain" },
+    { name: "Prosecco Extra Dry", producer: "Villa Sandi", style: "Glera", type: "Sparkling", country: "Italy" },
+    { name: "Chardonnay", producer: "Kendall-Jackson", style: "Chardonnay", type: "White", country: "USA" },
+    { name: "Cabernet Sauvignon", producer: "Concha y Toro", style: "Cabernet Sauvignon", type: "Red", country: "Chile" },
+    { name: "Pinot Noir", producer: "Villa Maria Estate", style: "Pinot Noir", type: "Red", country: "New Zealand" },
+  ],
+};
+
 const TASTE_SCALE_WORDS = [
   { value: 0, label: "Undrinkable" },
   { value: 10, label: "Truly awful" },
@@ -324,81 +375,259 @@ function getScoreCellStyle(value, maxValue) {
   };
 }
 
-function getRatingInputStyle(value, maxValue) {
-  return {
-    ...(getScoreCellStyle(Number(value), maxValue) || {}),
-    transition: "background-color 120ms ease",
-  };
+// One-time styles for the score picker. Embedded here (rather than in an
+// external stylesheet) so this component is self-contained — move these
+// rules into the real CSS file whenever convenient.
+function ScorePickerStyles() {
+  return (
+    <style>{`
+      .score-picker { display: flex; flex-direction: column; gap: 8px; }
+      .score-bucket-row, .score-pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        /* No 'gap' here on purpose — with items collapsing to zero width
+           a flex 'gap' still reserves space for every item pair, which is
+           what caused the big empty band between the selected chip and the
+           numbers. Spacing is handled per-item via margin instead, so
+           collapsed items can zero their own margin out too. */
+      }
+      .score-bucket-wrap, .score-pill-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 0 6px 6px 0;
+        transition:
+          max-width 260ms ease,
+          opacity 220ms ease,
+          margin 260ms ease;
+      }
+      .score-bucket, .score-pill {
+        border: 1px solid var(--score-accent, #6f5ef5);
+        background: #ffffff;
+        color: #1f1b2d;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 0.85rem;
+        line-height: 1;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background-color 150ms ease, color 150ms ease, transform 100ms ease;
+      }
+      .score-bucket:hover, .score-pill:hover { transform: translateY(-1px); }
+      /* The selected bucket "pops" to the front of the row (flex order isn't
+         itself animatable, but combined with its neighbours shrinking away
+         at the same time it reads as the chip sliding left). */
+      .score-bucket-wrap.open {
+        order: -1;
+      }
+      .score-bucket.open {
+        background: var(--score-accent, #6f5ef5);
+        color: #ffffff;
+        font-weight: 600;
+      }
+      .score-bucket.has-value:not(.open) {
+        background: color-mix(in srgb, var(--score-accent, #6f5ef5) 18%, #ffffff);
+      }
+      /* Buckets other than the one selected shrink away to nothing instead
+         of being removed outright, so the collapse itself is animated —
+         and their margin collapses to zero too, so no leftover gap. */
+      .score-bucket-wrap.collapsed-away {
+        max-width: 0;
+        opacity: 0;
+        margin: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+      .score-pill.selected {
+        background: var(--score-accent, #6f5ef5);
+        color: #ffffff;
+        font-weight: 600;
+      }
+      /* Individual numbers "file in" one after another into the space the
+         collapsed buckets left behind. */
+      .score-pill-wrap.file-in {
+        animation: score-pill-file-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      @keyframes score-pill-file-in {
+        from { opacity: 0; transform: translateX(-10px) scale(0.8); }
+        to { opacity: 1; transform: translateX(0) scale(1); }
+      }
+      .score-bucket-label, .score-pill-label {
+        font-size: 0.65rem;
+        color: #6b6580;
+        margin-top: 3px;
+        text-align: center;
+        max-width: 64px;
+        line-height: 1.1;
+      }
+      .score-picker-value {
+        font-size: 0.8rem;
+        color: #6b6580;
+      }
+      .score-picker-value strong {
+        color: #1f1b2d;
+      }
+    `}</style>
+  );
 }
 
-function ScaleHint({ value, points }) {
-  const numeric = Math.max(
-    points[0].value,
-    Math.min(points[points.length - 1].value, Number(value) || 0),
+/**
+ * Renders a rating field as tappable pills instead of a raw number input.
+ * For small ranges (<=10 possible values) it just shows every value as a
+ * flat row of pills. For larger ranges it groups values into buckets
+ * (0+, 10+, 20+ ...) that collapse — with an animated reveal — into the
+ * individual numbers within that bucket when tapped, so the user never has
+ * to type or scroll through a huge list of numbers. `points` (the same
+ * word-scale points used elsewhere, e.g. TASTE_SCALE_WORDS) are matched to
+ * the nearest whole number and rendered as a small label under that pill.
+ */
+function ScoreBucketPicker({ value, min, max, accent, points, onSelect }) {
+  const range = max - min;
+  const bucketSize = range <= 10 ? 1 : range <= 30 ? 5 : 10;
+  const numericValue = value === "" ? null : Number(value);
+
+  function bucketStart(v) {
+    if (v === null || Number.isNaN(v)) return null;
+    const clamped = Math.max(min, Math.min(max, v));
+    return Math.min(
+      min + Math.floor((clamped - min) / bucketSize) * bucketSize,
+      max,
+    );
+  }
+
+  const [expandedBucket, setExpandedBucket] = useState(() =>
+    numericValue ? bucketStart(numericValue) : null,
   );
 
-  let closestIdx = 0;
-  let minDistance = Math.abs(numeric - points[0].value);
-  for (let i = 1; i < points.length; i += 1) {
-    const distance = Math.abs(numeric - points[i].value);
-    if (
-      distance < minDistance ||
-      (distance === minDistance && points[i].value > points[closestIdx].value)
-    ) {
-      closestIdx = i;
-      minDistance = distance;
+  // Keep the open bucket in sync when the value changes for reasons other
+  // than the user tapping a pill in this component (e.g. switching to a
+  // product that already has a saved rating).
+  useEffect(() => {
+    if (numericValue !== null) {
+      setExpandedBucket(bucketStart(numericValue));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [numericValue]);
+
+  // Map each word-scale point onto the nearest whole number in range, so
+  // e.g. a point at 2.5 labels the "2" or "3" pill, and a point at 30
+  // labels the "30" pill/bucket exactly.
+  const wordLabelByValue = useMemo(() => {
+    const map = {};
+    (points || []).forEach((point) => {
+      const rounded = Math.round(point.value);
+      const clamped = Math.max(min, Math.min(max, rounded));
+      map[clamped] = point.label;
+    });
+    return map;
+  }, [points, min, max]);
+
+  const accentStyle = { "--score-accent": accent };
+
+  if (bucketSize === 1) {
+    const options = [];
+    for (let v = min; v <= max; v += 1) options.push(v);
+
+    return (
+      <div className="score-picker" style={accentStyle}>
+        <div className="score-pill-row">
+          {options.map((option) => (
+            <div key={option} className="score-pill-wrap">
+              <button
+                type="button"
+                className={`score-pill ${numericValue === option ? "selected" : ""}`}
+                onClick={() => onSelect(option)}
+              >
+                {option}
+              </button>
+              {wordLabelByValue[option] && (
+                <span className="score-pill-label">{wordLabelByValue[option]}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
-  let startIdx = closestIdx - 1;
-  let endIdx = closestIdx + 1;
-  if (startIdx < 0) {
-    startIdx = 0;
-    endIdx = Math.min(points.length - 1, 2);
-  } else if (endIdx >= points.length) {
-    endIdx = points.length - 1;
-    startIdx = Math.max(0, points.length - 3);
-  }
-  const windowPoints = points.slice(startIdx, endIdx + 1);
+  const buckets = [];
+  for (let b = min; b <= max; b += bucketSize) buckets.push(b);
 
-  const winMin = windowPoints[0].value;
-  const winMax = windowPoints[windowPoints.length - 1].value;
-  const winRange = winMax - winMin || 1;
-  const maxValue = points[points.length - 1].value;
-  const arrowPct = ((numeric - winMin) / winRange) * 100;
+  const individualNumbers =
+    expandedBucket !== null
+      ? Array.from(
+          {
+            length: Math.min(expandedBucket + bucketSize - 1, max) - expandedBucket + 1,
+          },
+          (_, i) => expandedBucket + i,
+        )
+      : [];
+
+  function toggleBucket(bucketValue) {
+    setExpandedBucket((current) => (current === bucketValue ? null : bucketValue));
+  }
 
   return (
-    <span className="rating-word-scale" aria-hidden="true">
-      <span
-        className="rating-word-scale-arrow"
-        style={{ left: `${arrowPct}%` }}
-      >
-        &#x25BC;
-      </span>
-      {windowPoints.map((point, idx) => {
-        const pct = ((point.value - winMin) / winRange) * 100;
-        const isFirst = idx === 0;
-        const isLast = idx === windowPoints.length - 1;
-        const xTransform = isFirst
-          ? "translateX(0%)"
-          : isLast
-            ? "translateX(-100%)"
-            : "translateX(-50%)";
-        return (
-          <span
-            key={point.label}
-            className="rating-word-scale-pill"
-            style={{
-              left: `${pct}%`,
-              background: getScaleColor(point.value, maxValue),
-              transform: xTransform,
-            }}
+    <div className="score-picker" style={accentStyle}>
+      {/* Buckets and individual numbers live in the same row: picking a
+          bucket shrinks every other bucket away and the chosen one hops to
+          the front, and the individual numbers file in right after it,
+          filling the space the other buckets used to occupy. */}
+      <div className="score-bucket-row" role="group">
+        {buckets.map((bucketValue) => {
+          const bucketEnd = Math.min(bucketValue + bucketSize - 1, max);
+          const isOpen = expandedBucket === bucketValue;
+          const isCollapsedAway = expandedBucket !== null && !isOpen;
+          const hasValue =
+            numericValue !== null &&
+            numericValue >= bucketValue &&
+            numericValue <= bucketEnd;
+          const label = bucketEnd > bucketValue ? `${bucketValue}+` : `${bucketValue}`;
+          const wordLabel = wordLabelByValue[bucketValue];
+
+          return (
+            <div
+              key={bucketValue}
+              className={`score-bucket-wrap ${isOpen ? "open" : ""} ${isCollapsedAway ? "collapsed-away" : ""}`}
+            >
+              <button
+                type="button"
+                className={`score-bucket ${isOpen ? "open" : ""} ${hasValue ? "has-value" : ""}`}
+                aria-expanded={isOpen}
+                aria-hidden={isCollapsedAway}
+                tabIndex={isCollapsedAway ? -1 : 0}
+                onClick={() => toggleBucket(bucketValue)}
+              >
+                {isOpen ? `${label} ✕` : label}
+              </button>
+              {!isCollapsedAway && wordLabel && (
+                <span className="score-bucket-label">{wordLabel}</span>
+              )}
+            </div>
+          );
+        })}
+
+        {individualNumbers.map((option, index) => (
+          <div
+            key={option}
+            className="score-pill-wrap file-in"
+            style={{ animationDelay: `${Math.min(index * 22, 260)}ms` }}
           >
-            {point.label}
-          </span>
-        );
-      })}
-    </span>
+            <button
+              type="button"
+              className={`score-pill ${numericValue === option ? "selected" : ""}`}
+              onClick={() => onSelect(option)}
+            >
+              {option}
+            </button>
+            {wordLabelByValue[option] && (
+              <span className="score-pill-label">{wordLabelByValue[option]}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -488,6 +717,8 @@ function TablePage({ onSignOut, beverage = "beer" }) {
     producerQuery: "",
     nameQuery: "",
     styleQuery: "",
+    countryQuery: "",
+    regionQuery: "",
     typeQuery: "",
     taste: 0,
     value: 0,
@@ -534,6 +765,8 @@ function TablePage({ onSignOut, beverage = "beer" }) {
       producerQuery: "",
       nameQuery: "",
       styleQuery: "",
+      countryQuery: "",
+      regionQuery: "",
       typeQuery: "",
       taste: 0,
       value: 0,
@@ -543,19 +776,45 @@ function TablePage({ onSignOut, beverage = "beer" }) {
     });
   }, [config.key, config.listRatingsKey]);
 
-  const productCatalog = useMemo(
-    () =>
-      averageData
-        .map((product) => ({
-          id: product.id,
-          name: String(product.name || ""),
-          producer: String(product?.[config.productField] || ""),
-          style: String(product.style || ""),
-          type: String(product.type || ""),
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [averageData, config.productField],
-  );
+  // The lookup is a merge of two sources:
+  //  1. The local "known products" dataset (KNOWN_PRODUCTS) — a big list of
+  //     real-world products so users can type "Stella" and have everything
+  //     else autofill, even before anyone has ever rated it.
+  //  2. Products that already exist in this group's rating history, which
+  //     carry a real backend id.
+  // Entries are de-duped by name+producer, with the rating-history version
+  // winning (it has the real id needed to attach a new rating to it).
+  const productCatalog = useMemo(() => {
+    const fromKnownDataset = (KNOWN_PRODUCTS[config.key] || []).map(
+      (product) => ({
+        id: `known-${config.key}-${product.name}-${product.producer}`,
+        name: String(product.name || ""),
+        producer: String(product.producer || ""),
+        style: String(product.style || ""),
+        type: String(product.type || ""),
+        country: String(product.country || ""),
+      }),
+    );
+
+    const fromRatingHistory = averageData.map((product) => ({
+      id: product.id,
+      name: String(product.name || ""),
+      producer: String(product?.[config.productField] || ""),
+      style: String(product.style || ""),
+      type: String(product.type || ""),
+      country: String(product.country || ""),
+    }));
+
+    const byKey = new Map();
+    [...fromKnownDataset, ...fromRatingHistory].forEach((product) => {
+      const key = `${product.name.toLowerCase()}|${product.producer.toLowerCase()}`;
+      byKey.set(key, product);
+    });
+
+    return Array.from(byKey.values()).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+  }, [averageData, config.key, config.productField]);
 
   const producerSuggestions = useMemo(
     () =>
@@ -622,10 +881,31 @@ function TablePage({ onSignOut, beverage = "beer" }) {
       .slice(0, 8);
   }, [ratingForm.styleQuery, styleOptions]);
 
+  const countryOptions = useMemo(() => {
+    const fromCatalog = productCatalog
+      .map((product) => product.country)
+      .filter(Boolean);
+
+    return [...new Set([...COUNTRY_OPTIONS, ...fromCatalog])].sort((a, b) =>
+      a.localeCompare(b),
+    );
+  }, [productCatalog]);
+
+  const filteredCountrySuggestions = useMemo(() => {
+    const query = (ratingForm.countryQuery || "").trim().toLowerCase();
+    if (!query) return countryOptions.slice(0, 8);
+
+    return countryOptions
+      .filter((value) => value.toLowerCase().includes(query))
+      .slice(0, 8);
+  }, [countryOptions, ratingForm.countryQuery]);
+
   const matchedProducts = useMemo(() => {
     const producerQuery = ratingForm.producerQuery.trim().toLowerCase();
     const nameQuery = ratingForm.nameQuery.trim().toLowerCase();
     const styleQuery = ratingForm.styleQuery.trim().toLowerCase();
+    const countryQuery = ratingForm.countryQuery.trim().toLowerCase();
+    const regionQuery = ratingForm.regionQuery.trim().toLowerCase();
     const typeQuery = normalizeBeerType(ratingForm.typeQuery);
 
     return productCatalog.filter((product) => {
@@ -638,17 +918,27 @@ function TablePage({ onSignOut, beverage = "beer" }) {
       const styleMatch = styleQuery
         ? product.style.toLowerCase().includes(styleQuery)
         : true;
+      const countryMatch = countryQuery
+        ? product.country.toLowerCase().includes(countryQuery)
+        : true;
+      const regionMatch = regionQuery
+        ? product.region.toLowerCase().includes(regionQuery)
+        : true;
       const typeMatch = typeQuery
         ? normalizeBeerType(product.type) === typeQuery
         : true;
 
-      return producerMatch && nameMatch && styleMatch && typeMatch;
+      return (
+        producerMatch && nameMatch && styleMatch && typeMatch && countryMatch
+      );
     });
   }, [
     productCatalog,
     ratingForm.nameQuery,
     ratingForm.producerQuery,
     ratingForm.styleQuery,
+    ratingForm.countryQuery,
+    ratingForm.regionQuery,
     ratingForm.typeQuery,
   ]);
 
@@ -870,6 +1160,41 @@ function TablePage({ onSignOut, beverage = "beer" }) {
     selectedProductForRating,
   ]);
 
+  // Autofill from the lookup as soon as what's typed in the name field
+  // uniquely (and exactly) matches something in the dataset — the user
+  // shouldn't have to click a suggestion for this to kick in. If nothing
+  // matches, the fields are left alone so manual entry still works.
+  useEffect(() => {
+    const query = ratingForm.nameQuery.trim().toLowerCase();
+    if (!query) return;
+
+    const exactMatches = productCatalog.filter(
+      (product) => product.name.toLowerCase() === query,
+    );
+
+    if (exactMatches.length !== 1) return;
+
+    const match = exactMatches[0];
+    setRatingForm((current) => {
+      if (
+        current.producerQuery === match.producer &&
+        current.styleQuery === match.style &&
+        current.typeQuery === match.type &&
+        (current.countryQuery || "") === (match.country || current.countryQuery || "")
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        producerQuery: match.producer,
+        styleQuery: match.style,
+        typeQuery: match.type,
+        countryQuery: match.country || current.countryQuery,
+      };
+    });
+  }, [productCatalog, ratingForm.nameQuery]);
+
   function onSheetPointerDown(event) {
     event.preventDefault();
     setSuppressHandleToggle(false);
@@ -991,6 +1316,7 @@ function TablePage({ onSignOut, beverage = "beer" }) {
       producerQuery: product.producer,
       styleQuery: product.style,
       typeQuery: product.type,
+      countryQuery: product.country || current.countryQuery,
     }));
   }
 
@@ -1705,6 +2031,58 @@ function TablePage({ onSignOut, beverage = "beer" }) {
                 </ul>
               )}
           </div>
+          {config.key === "wine" ? (
+            <>
+              <label htmlFor="sheet-country">Country</label>
+              <div className="search-field">
+                <input
+                  id="sheet-country"
+                  type="text"
+                  placeholder="Search country"
+                  value={ratingForm.countryQuery}
+                  onFocus={() => setActiveSearchInput("country")}
+                  onBlur={() =>
+                    setTimeout(
+                      () =>
+                        setActiveSearchInput((current) =>
+                          current === "country" ? null : current,
+                        ),
+                      100,
+                    )
+                  }
+                  onChange={(event) => {
+                    setActiveSearchInput("country");
+                    updateRatingField("countryQuery", event.target.value);
+                  }}
+                />
+
+                {activeSearchInput === "country" &&
+                  filteredCountrySuggestions.length > 0 && (
+                    <ul
+                      className="search-suggestions"
+                      role="listbox"
+                      aria-label="Country suggestions"
+                    >
+                      {filteredCountrySuggestions.map((country) => (
+                        <li key={country}>
+                          <button
+                            type="button"
+                            className="search-suggestion-item"
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              updateRatingField("countryQuery", country);
+                              setActiveSearchInput(null);
+                            }}
+                          >
+                            {country}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+              </div>
+            </>
+          ) : null}
 
           <label htmlFor="sheet-style">Style</label>
           <div className="search-field">
@@ -1787,23 +2165,18 @@ function TablePage({ onSignOut, beverage = "beer" }) {
               : `${matchedProducts.length} matching ${config.plural}`}
           </p>
 
+          <ScorePickerStyles />
           <div className="rating-sheet-grid">
             <label>
               Taste (0-100)
               <div className="rating-score-row">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
+                <ScoreBucketPicker
                   value={ratingForm.taste}
-                  style={getRatingInputStyle(ratingForm.taste, 100)}
-                  onChange={(event) =>
-                    updateRatingField("taste", event.target.value)
-                  }
-                />
-                <ScaleHint
-                  value={ratingForm.taste}
+                  min={0}
+                  max={100}
+                  accent={config.accent}
                   points={TASTE_SCALE_WORDS}
+                  onSelect={(v) => updateRatingField("taste", v)}
                 />
               </div>
             </label>
@@ -1811,19 +2184,13 @@ function TablePage({ onSignOut, beverage = "beer" }) {
             <label>
               Value (0-20)
               <div className="rating-score-row">
-                <input
-                  type="number"
-                  min="0"
-                  max="20"
+                <ScoreBucketPicker
                   value={ratingForm.value}
-                  style={getRatingInputStyle(ratingForm.value, 20)}
-                  onChange={(event) =>
-                    updateRatingField("value", event.target.value)
-                  }
-                />
-                <ScaleHint
-                  value={ratingForm.value}
+                  min={0}
+                  max={20}
+                  accent={config.accent}
                   points={VALUE_SCALE_WORDS}
+                  onSelect={(v) => updateRatingField("value", v)}
                 />
               </div>
             </label>
@@ -1831,22 +2198,13 @@ function TablePage({ onSignOut, beverage = "beer" }) {
             <label>
               {config.extraMetricLabel} (0-10)
               <div className="rating-score-row">
-                <input
-                  type="number"
-                  min="0"
-                  max="10"
+                <ScoreBucketPicker
                   value={ratingForm[config.extraFormKey]}
-                  style={getRatingInputStyle(
-                    ratingForm[config.extraFormKey],
-                    10,
-                  )}
-                  onChange={(event) =>
-                    updateRatingField(config.extraFormKey, event.target.value)
-                  }
-                />
-                <ScaleHint
-                  value={ratingForm[config.extraFormKey]}
+                  min={0}
+                  max={10}
+                  accent={config.accent}
                   points={config.extraScaleWords}
+                  onSelect={(v) => updateRatingField(config.extraFormKey, v)}
                 />
               </div>
             </label>
@@ -1854,19 +2212,13 @@ function TablePage({ onSignOut, beverage = "beer" }) {
             <label>
               Packaging (0-5)
               <div className="rating-score-row">
-                <input
-                  type="number"
-                  min="0"
-                  max="5"
+                <ScoreBucketPicker
                   value={ratingForm.packaging}
-                  style={getRatingInputStyle(ratingForm.packaging, 5)}
-                  onChange={(event) =>
-                    updateRatingField("packaging", event.target.value)
-                  }
-                />
-                <ScaleHint
-                  value={ratingForm.packaging}
+                  min={0}
+                  max={5}
+                  accent={config.accent}
                   points={PACKAGING_SCALE_WORDS}
+                  onSelect={(v) => updateRatingField("packaging", v)}
                 />
               </div>
             </label>
