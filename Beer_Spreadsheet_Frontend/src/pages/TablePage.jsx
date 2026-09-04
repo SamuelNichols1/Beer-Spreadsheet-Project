@@ -417,10 +417,14 @@ function ScorePickerStyles() {
       .score-bucket:hover, .score-pill:hover { transform: translateY(-1px); }
       /* The selected bucket "pops" to the front of the row (flex order isn't
          itself animatable, but combined with its neighbours shrinking away
-         at the same time it reads as the chip sliding left). */
-      .score-bucket-wrap.open {
-        order: -1;
-      }
+         at the same time it reads as the chip sliding left). Breadcrumbs
+         from earlier levels use their own (more negative) order so the
+         oldest picks stay leftmost and the newest sits just after them. */
+      .score-bucket-wrap.open { order: -1; }
+      .score-bucket-wrap.crumb-0 { order: -5; }
+      .score-bucket-wrap.crumb-1 { order: -4; }
+      .score-bucket-wrap.crumb-2 { order: -3; }
+      .score-bucket-wrap.crumb-3 { order: -2; }
       .score-bucket.open {
         background: var(--score-accent, #6f5ef5);
         color: #ffffff;
@@ -431,7 +435,9 @@ function ScorePickerStyles() {
       }
       /* Buckets other than the one selected shrink away to nothing instead
          of being removed outright, so the collapse itself is animated —
-         and their margin collapses to zero too, so no leftover gap. */
+         and their margin collapses to zero too, so no leftover gap. These
+         stay mounted (same key) at every depth so the shrink plays even
+         several levels down, rather than the row just jump-cutting. */
       .score-bucket-wrap.collapsed-away {
         max-width: 0;
         opacity: 0;
@@ -444,9 +450,9 @@ function ScorePickerStyles() {
         color: #ffffff;
         font-weight: 600;
       }
-      /* Individual numbers "file in" one after another into the space the
-         collapsed buckets left behind. */
-      .score-pill-wrap.file-in {
+      /* Individual numbers / next-level chunks "file in" one after another
+         into the space the collapsed buckets left behind. */
+      .score-pill-wrap.file-in, .score-bucket-wrap.file-in {
         animation: score-pill-file-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
       }
       @keyframes score-pill-file-in {
@@ -472,47 +478,96 @@ function ScorePickerStyles() {
   );
 }
 
+// "Nice" round bucket sizes, tried smallest-first, so grouping reads
+// naturally (0-19, 20-39, ...) instead of odd machine-even splits.
+const NICE_BUCKET_SIZES = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
+const MAX_BUTTONS_PER_LEVEL = 5;
+
+function pickBucketSize(lo, hi) {
+  const span = hi - lo;
+  if (span <= 0) return 1;
+  for (const size of NICE_BUCKET_SIZES) {
+    if (Math.ceil(span / size) <= MAX_BUTTONS_PER_LEVEL) return size;
+  }
+  return NICE_BUCKET_SIZES[NICE_BUCKET_SIZES.length - 1];
+}
+
+// Splits [lo, hi] into at most MAX_BUTTONS_PER_LEVEL chunks. Any overflow
+// chunk (from rounding to a "nice" size) gets folded into the previous one
+// so the cap always holds — e.g. 0-100 becomes 0-19/20-39/40-59/60-79/80-100
+// rather than spilling into a 6th button.
+function buildChunks(lo, hi) {
+  const bucketSize = pickBucketSize(lo, hi);
+  const chunks = [];
+  let start = lo;
+  while (start <= hi) {
+    const end = Math.min(start + bucketSize - 1, hi);
+    chunks.push([start, end]);
+    start = end + 1;
+  }
+  while (chunks.length > MAX_BUTTONS_PER_LEVEL) {
+    const overflow = chunks.pop();
+    chunks[chunks.length - 1][1] = overflow[1];
+  }
+  return chunks;
+}
+
+// Walks from the full [min, max] range down to whichever chunk currently
+// contains targetValue, so opening a product that already has a saved
+// rating (or switching products) shows the drill-down path already in
+// place instead of starting back at the top every time.
+function computeChunkPath(min, max, targetValue) {
+  const path = [];
+  let lo = min;
+  let hi = max;
+  while (hi - lo + 1 > MAX_BUTTONS_PER_LEVEL) {
+    const chunks = buildChunks(lo, hi);
+    const match =
+      chunks.find(([cLo, cHi]) => targetValue >= cLo && targetValue <= cHi) ||
+      chunks[chunks.length - 1];
+    path.push(match);
+    [lo, hi] = match;
+  }
+  return path;
+}
+
+function bucketLabel(lo, hi, max) {
+  if (lo === hi) return `${lo}`;
+  if (hi === max) return `${lo}+`;
+  return `${lo}-${hi}`;
+}
+
 /**
- * Renders a rating field as tappable pills instead of a raw number input.
- * For small ranges (<=10 possible values) it just shows every value as a
- * flat row of pills. For larger ranges it groups values into buckets
- * (0+, 10+, 20+ ...) that collapse — with an animated reveal — into the
- * individual numbers within that bucket when tapped, so the user never has
- * to type or scroll through a huge list of numbers. `points` (the same
- * word-scale points used elsewhere, e.g. TASTE_SCALE_WORDS) are matched to
- * the nearest whole number and rendered as a small label under that pill.
+ * Renders a rating field as tappable pills instead of a raw number input,
+ * capped at 5 buttons per level. Ranges that don't fit in 5 individual
+ * numbers get grouped into at-most-5 buckets (0-19, 20-39, ...); tapping a
+ * bucket immediately sets its start value as the rating (so a rough pick
+ * is already a valid, saved-worthy answer) and — with an animated
+ * collapse-and-file-in — reveals the next level down (either finer buckets
+ * or, once 5 or fewer values remain, the individual numbers). Already-
+ * chosen levels stay visible as small breadcrumb chips on the left, each
+ * tappable to go back up. `points` (the same word-scale arrays used
+ * elsewhere, e.g. TASTE_SCALE_WORDS) are matched to the nearest whole
+ * number and rendered as a small label under that bucket/number.
  */
 function ScoreBucketPicker({ value, min, max, accent, points, onSelect }) {
-  const range = max - min;
-  const bucketSize = range <= 10 ? 1 : range <= 30 ? 5 : 10;
   const numericValue = value === "" ? null : Number(value);
 
-  function bucketStart(v) {
-    if (v === null || Number.isNaN(v)) return null;
-    const clamped = Math.max(min, Math.min(max, v));
-    return Math.min(
-      min + Math.floor((clamped - min) / bucketSize) * bucketSize,
-      max,
-    );
-  }
-
-  const [expandedBucket, setExpandedBucket] = useState(() =>
-    numericValue ? bucketStart(numericValue) : null,
+  const [path, setPath] = useState(() =>
+    numericValue ? computeChunkPath(min, max, numericValue) : [],
   );
 
-  // Keep the open bucket in sync when the value changes for reasons other
-  // than the user tapping a pill in this component (e.g. switching to a
-  // product that already has a saved rating).
+  // Keep the drill-down path in sync when the value changes for reasons
+  // other than the user tapping something in this component (e.g.
+  // switching to a product that already has a saved rating).
   useEffect(() => {
-    if (numericValue !== null) {
-      setExpandedBucket(bucketStart(numericValue));
-    }
+    setPath(numericValue ? computeChunkPath(min, max, numericValue) : []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [numericValue]);
+  }, [numericValue, min, max]);
 
   // Map each word-scale point onto the nearest whole number in range, so
   // e.g. a point at 2.5 labels the "2" or "3" pill, and a point at 30
-  // labels the "30" pill/bucket exactly.
+  // labels the "30" bucket/pill exactly.
   const wordLabelByValue = useMemo(() => {
     const map = {};
     (points || []).forEach((point) => {
@@ -525,107 +580,115 @@ function ScoreBucketPicker({ value, min, max, accent, points, onSelect }) {
 
   const accentStyle = { "--score-accent": accent };
 
-  if (bucketSize === 1) {
-    const options = [];
-    for (let v = min; v <= max; v += 1) options.push(v);
-
-    return (
-      <div className="score-picker" style={accentStyle}>
-        <div className="score-pill-row">
-          {options.map((option) => (
-            <div key={option} className="score-pill-wrap">
-              <button
-                type="button"
-                className={`score-pill ${numericValue === option ? "selected" : ""}`}
-                onClick={() => onSelect(option)}
-              >
-                {option}
-              </button>
-              {wordLabelByValue[option] && (
-                <span className="score-pill-label">{wordLabelByValue[option]}</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+  function selectChunk(lo, hi) {
+    onSelect(lo);
+    if (hi > lo) {
+      setPath((current) => [...current, [lo, hi]]);
+    }
   }
 
-  const buckets = [];
-  for (let b = min; b <= max; b += bucketSize) buckets.push(b);
-
-  const individualNumbers =
-    expandedBucket !== null
-      ? Array.from(
-          {
-            length: Math.min(expandedBucket + bucketSize - 1, max) - expandedBucket + 1,
-          },
-          (_, i) => expandedBucket + i,
-        )
-      : [];
-
-  function toggleBucket(bucketValue) {
-    setExpandedBucket((current) => (current === bucketValue ? null : bucketValue));
+  function goBackTo(levelIndex) {
+    setPath((current) => current.slice(0, levelIndex));
   }
+
+  // Build one row item per chunk button that could appear: already-
+  // committed breadcrumbs ("chip"), their passed-over siblings ("ghost" —
+  // kept mounted with a stable key so they visibly shrink away instead of
+  // just vanishing), and the currently choosable set at the frontier
+  // ("active"). Using a stable `b-{lo}-{hi}` key across all three roles is
+  // what lets the CSS transition play instead of React just swapping in a
+  // brand new element.
+  const rowItems = [];
+  for (let level = 0; level < path.length; level += 1) {
+    const [parentLo, parentHi] = level === 0 ? [min, max] : path[level - 1];
+    buildChunks(parentLo, parentHi).forEach(([cLo, cHi]) => {
+      const isChosen = cLo === path[level][0] && cHi === path[level][1];
+      rowItems.push({ lo: cLo, hi: cHi, role: isChosen ? "chip" : "ghost", level });
+    });
+  }
+
+  const [frontierLo, frontierHi] = path.length ? path[path.length - 1] : [min, max];
+  const frontierCount = frontierHi - frontierLo + 1;
+  const isLeaf = frontierCount <= MAX_BUTTONS_PER_LEVEL;
+
+  if (!isLeaf) {
+    buildChunks(frontierLo, frontierHi).forEach(([cLo, cHi]) => {
+      rowItems.push({ lo: cLo, hi: cHi, role: "active", level: path.length });
+    });
+  }
+
+  let animIndex = 0;
 
   return (
     <div className="score-picker" style={accentStyle}>
-      {/* Buckets and individual numbers live in the same row: picking a
-          bucket shrinks every other bucket away and the chosen one hops to
-          the front, and the individual numbers file in right after it,
-          filling the space the other buckets used to occupy. */}
       <div className="score-bucket-row" role="group">
-        {buckets.map((bucketValue) => {
-          const bucketEnd = Math.min(bucketValue + bucketSize - 1, max);
-          const isOpen = expandedBucket === bucketValue;
-          const isCollapsedAway = expandedBucket !== null && !isOpen;
+        {rowItems.map(({ lo, hi, role, level }) => {
+          if (role === "ghost") {
+            return (
+              <div
+                key={`b-${lo}-${hi}`}
+                className="score-bucket-wrap collapsed-away"
+                aria-hidden="true"
+              />
+            );
+          }
+
+          const isChip = role === "chip";
           const hasValue =
-            numericValue !== null &&
-            numericValue >= bucketValue &&
-            numericValue <= bucketEnd;
-          const label = bucketEnd > bucketValue ? `${bucketValue}+` : `${bucketValue}`;
-          const wordLabel = wordLabelByValue[bucketValue];
+            numericValue !== null && numericValue >= lo && numericValue <= hi;
+          const wrapClasses = ["score-bucket-wrap"];
+          if (isChip) {
+            wrapClasses.push("open", `crumb-${Math.min(level, 3)}`);
+          } else {
+            wrapClasses.push("file-in");
+          }
+          const delay = isChip ? 0 : Math.min(animIndex * 30, 200);
+          if (!isChip) animIndex += 1;
 
           return (
             <div
-              key={bucketValue}
-              className={`score-bucket-wrap ${isOpen ? "open" : ""} ${isCollapsedAway ? "collapsed-away" : ""}`}
+              key={`b-${lo}-${hi}`}
+              className={wrapClasses.join(" ")}
+              style={!isChip ? { animationDelay: `${delay}ms` } : undefined}
             >
               <button
                 type="button"
-                className={`score-bucket ${isOpen ? "open" : ""} ${hasValue ? "has-value" : ""}`}
-                aria-expanded={isOpen}
-                aria-hidden={isCollapsedAway}
-                tabIndex={isCollapsedAway ? -1 : 0}
-                onClick={() => toggleBucket(bucketValue)}
+                className={`score-bucket ${isChip ? "open" : ""} ${hasValue ? "has-value" : ""}`}
+                aria-expanded={isChip}
+                onClick={() => (isChip ? goBackTo(level) : selectChunk(lo, hi))}
               >
-                {isOpen ? `${label} ✕` : label}
+                {bucketLabel(lo, hi, max)}
+                {isChip ? " ✕" : ""}
               </button>
-              {!isCollapsedAway && wordLabel && (
-                <span className="score-bucket-label">{wordLabel}</span>
+              {wordLabelByValue[lo] && (
+                <span className="score-bucket-label">{wordLabelByValue[lo]}</span>
               )}
             </div>
           );
         })}
 
-        {individualNumbers.map((option, index) => (
-          <div
-            key={option}
-            className="score-pill-wrap file-in"
-            style={{ animationDelay: `${Math.min(index * 22, 260)}ms` }}
-          >
-            <button
-              type="button"
-              className={`score-pill ${numericValue === option ? "selected" : ""}`}
-              onClick={() => onSelect(option)}
-            >
-              {option}
-            </button>
-            {wordLabelByValue[option] && (
-              <span className="score-pill-label">{wordLabelByValue[option]}</span>
-            )}
-          </div>
-        ))}
+        {isLeaf &&
+          frontierCount > 1 &&
+          Array.from({ length: frontierCount }, (_, i) => frontierLo + i).map(
+            (option, index) => (
+              <div
+                key={`n-${option}`}
+                className="score-pill-wrap file-in"
+                style={{ animationDelay: `${Math.min(index * 22, 200)}ms` }}
+              >
+                <button
+                  type="button"
+                  className={`score-pill ${numericValue === option ? "selected" : ""}`}
+                  onClick={() => onSelect(option)}
+                >
+                  {option}
+                </button>
+                {wordLabelByValue[option] && (
+                  <span className="score-pill-label">{wordLabelByValue[option]}</span>
+                )}
+              </div>
+            ),
+          )}
       </div>
     </div>
   );
