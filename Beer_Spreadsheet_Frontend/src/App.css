@@ -714,8 +714,9 @@ button:disabled {
     padding: 8px;
   }
 
-  .rating-sheet-form input,
-  .rating-sheet-form select {
+  input,
+  select,
+  textarea {
     font-size: 16px;
   }
 
