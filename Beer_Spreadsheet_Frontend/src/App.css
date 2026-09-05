@@ -455,7 +455,7 @@ button:disabled {
 .rating-sheet-form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   min-width: 0;
   transition:
@@ -483,7 +483,7 @@ button:disabled {
 .type-select-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 .type-select-box {
@@ -491,7 +491,7 @@ button:disabled {
   background: #ffffff;
   color: #3c3657;
   font-weight: 600;
-  padding: 8px;
+  padding: 6px;
 }
 
 .type-select-box.selected {
@@ -545,13 +545,13 @@ button:disabled {
 .rating-sheet-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 .rating-sheet-grid label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
 }
 

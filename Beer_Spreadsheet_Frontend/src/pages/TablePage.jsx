@@ -384,7 +384,7 @@ function ScorePickerStyles() {
       .score-picker {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 5px;
         width: 100%;
         min-width: 0;
       }
@@ -492,15 +492,15 @@ function ScorePickerStyles() {
       }
       .score-slider-track {
         position: relative;
-        width: calc(100% - 16px);
-        height: 30px;
-        margin: 0 8px;
+        width: calc(100% - 56px);
+        height: 26px;
+        margin: 0 28px;
       }
       .score-slider-input {
         position: absolute;
         inset: 0;
         width: 100%;
-        height: 30px;
+        height: 26px;
         margin: 0;
         min-width: 0;
         flex-shrink: 1;
@@ -548,9 +548,9 @@ function ScorePickerStyles() {
       }
       .score-slider-scale {
         position: relative;
-        width: calc(100% - 16px);
-        height: 38px;
-        margin: 0 8px;
+        width: calc(100% - 56px);
+        height: 30px;
+        margin: 0 28px;
       }
       .score-slider-scale-point {
         position: absolute;
@@ -2179,7 +2179,7 @@ function TablePage({ onSignOut, beverage = "beer" }) {
         } ${sheetHeight <= COLLAPSED_SHEET_HEIGHT + 2 ? "collapsed" : ""}`}
         style={{ height: `${sheetHeight}px` }}
       >
-        <form onSubmit={submitRating}>
+        <form className="rating-sheet-form" onSubmit={submitRating}>
           <button
             type="button"
             className="rating-sheet-handle"
