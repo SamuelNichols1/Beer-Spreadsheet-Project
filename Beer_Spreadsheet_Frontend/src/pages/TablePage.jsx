@@ -490,6 +490,80 @@ function ScorePickerStyles() {
       .score-picker-value strong {
         color: #1f1b2d;
       }
+      .score-slider-track {
+        position: relative;
+        width: calc(100% - 16px);
+        height: 30px;
+        margin: 0 8px;
+      }
+      .score-slider-input {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 30px;
+        margin: 0;
+        min-width: 0;
+        flex-shrink: 1;
+        padding: 0;
+        text-align: initial;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .rating-score-row .score-slider-input {
+        width: 100%;
+      }
+      .score-slider-track::before {
+        content: "";
+        position: absolute;
+        top: 11px;
+        right: 0;
+        left: 0;
+        height: 8px;
+        border-radius: 999px;
+        background: linear-gradient(to right, var(--score-accent) var(--score-progress), #e5e1f5 var(--score-progress));
+      }
+      .score-slider-value {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: var(--score-progress);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        min-width: 38px;
+        padding: 4px 7px;
+        border-radius: 7px;
+        background: var(--score-accent);
+        color: #ffffff;
+        font-size: 0.8rem;
+        font-weight: 700;
+        line-height: 1;
+        text-align: center;
+        transform: translateX(-50%);
+        white-space: nowrap;
+      }
+      .score-slider-value-label {
+        font-size: 0.68rem;
+        font-weight: 600;
+      }
+      .score-slider-scale {
+        position: relative;
+        width: calc(100% - 16px);
+        height: 38px;
+        margin: 0 8px;
+      }
+      .score-slider-scale-point {
+        position: absolute;
+        top: 0;
+        left: var(--scale-position);
+        width: max-content;
+        max-width: 76px;
+        color: #6b6580;
+        font-size: 0.65rem;
+        line-height: 1.1;
+        text-align: center;
+        transform: translateX(-50%);
+      }
     `}</style>
   );
 }
@@ -718,6 +792,78 @@ function ScoreBucketPicker({ value, min, max, accent, points, onSelect }) {
               </div>
             ),
           )}
+      </div>
+    </div>
+  );
+}
+
+function ScoreSlider({
+  value,
+  min,
+  max,
+  accent,
+  points,
+  visiblePointCount = 5,
+  onSelect,
+}) {
+  const numericValue = value === "" ? null : Number(value);
+  const sliderValue = Math.max(min, Math.min(max, numericValue ?? min));
+  const progress = ((sliderValue - min) / (max - min)) * 100;
+  const nearestPoint = [...(points || [])]
+    .filter((point) => point.value <= sliderValue)
+    .sort((a, b) => b.value - a.value)[0] ||
+    points?.[0] || { value: min, label: "" };
+  const visibleScalePoints = (points || []).filter((point, index, allPoints) => {
+    if (allPoints.length <= visiblePointCount) return true;
+    const visibleIndexes = new Set(
+      Array.from({ length: visiblePointCount }, (_, slot) =>
+        Math.round(
+          (slot * (allPoints.length - 1)) / (visiblePointCount - 1),
+        ),
+      ),
+    );
+    return visibleIndexes.has(index);
+  });
+  const pickerStyle = {
+    "--score-accent": accent,
+    "--score-progress": `${progress}%`,
+  };
+
+  return (
+    <div className="score-picker" style={pickerStyle}>
+      <div className="score-slider-track">
+        <span className="score-slider-value">
+          {numericValue ?? "-"}
+          {nearestPoint.label && (
+            <span className="score-slider-value-label">
+              {nearestPoint.label}
+            </span>
+          )}
+        </span>
+        <input
+          className="score-slider-input"
+          type="range"
+          min={String(min)}
+          max={String(max)}
+          step="1"
+          value={sliderValue}
+          aria-label={`${min} to ${max} score`}
+          onChange={(event) => onSelect(Number(event.target.value))}
+        />
+      </div>
+      <div className="score-slider-scale" aria-hidden="true">
+        {visibleScalePoints.map((point) => {
+          const position = ((point.value - min) / (max - min)) * 100;
+          return (
+            <span
+              key={`${point.value}-${point.label}`}
+              className="score-slider-scale-point"
+              style={{ "--scale-position": `${position}%` }}
+            >
+              {point.label}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
@@ -2311,12 +2457,13 @@ function TablePage({ onSignOut, beverage = "beer" }) {
             <label>
               Taste (0-100)
               <div className="rating-score-row">
-                <ScoreBucketPicker
+                <ScoreSlider
                   value={ratingForm.taste}
                   min={0}
                   max={100}
                   accent={config.accent}
                   points={TASTE_SCALE_WORDS}
+                  visiblePointCount={6}
                   onSelect={(v) => updateRatingField("taste", v)}
                 />
               </div>
@@ -2325,7 +2472,7 @@ function TablePage({ onSignOut, beverage = "beer" }) {
             <label>
               Value (0-20)
               <div className="rating-score-row">
-                <ScoreBucketPicker
+                <ScoreSlider
                   value={ratingForm.value}
                   min={0}
                   max={20}
@@ -2339,7 +2486,7 @@ function TablePage({ onSignOut, beverage = "beer" }) {
             <label>
               {config.extraMetricLabel} (0-10)
               <div className="rating-score-row">
-                <ScoreBucketPicker
+                <ScoreSlider
                   value={ratingForm[config.extraFormKey]}
                   min={0}
                   max={10}
@@ -2353,12 +2500,13 @@ function TablePage({ onSignOut, beverage = "beer" }) {
             <label>
               Packaging (0-5)
               <div className="rating-score-row">
-                <ScoreBucketPicker
+                <ScoreSlider
                   value={ratingForm.packaging}
                   min={0}
                   max={5}
                   accent={config.accent}
                   points={PACKAGING_SCALE_WORDS}
+                  visiblePointCount={6}
                   onSelect={(v) => updateRatingField("packaging", v)}
                 />
               </div>
