@@ -473,6 +473,11 @@ button:disabled {
   transform: translateY(10px);
 }
 
+.rating-sheet.collapsed .rating-sheet-form {
+  height: 44px;
+  overflow: hidden;
+}
+
 .rating-sheet-match {
   margin: 0;
   font-size: 12px;
