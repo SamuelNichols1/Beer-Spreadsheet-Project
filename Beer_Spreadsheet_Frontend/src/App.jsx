@@ -12,6 +12,26 @@ function normalizeHexColor(value) {
   return /^#[0-9a-fA-F]{6}$/.test(trimmed) ? trimmed.toLowerCase() : null;
 }
 
+async function getDeviceFingerprint() {
+  const values = [
+    navigator.userAgent,
+    navigator.language,
+    navigator.platform,
+    `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`,
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+    navigator.hardwareConcurrency || "",
+    navigator.deviceMemory || "",
+  ].join("|");
+
+  if (!window.crypto?.subtle) return values;
+
+  const bytes = new TextEncoder().encode(values);
+  const digest = await window.crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
 const BEVERAGE_CONFIG = {
   beer: {
     key: "beer",
@@ -83,7 +103,10 @@ function App() {
   const [savedToken, setSavedToken] = useState(
     localStorage.getItem("authToken") || "",
   );
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() =>
+    Boolean(localStorage.getItem("authToken")),
+  );
+  const [authChecking, setAuthChecking] = useState(true);
   const [myColor, setMyColor] = useState("#7c5cff");
   const [savingColor, setSavingColor] = useState(false);
 
@@ -324,6 +347,29 @@ function App() {
 
   useEffect(() => {
     async function bootstrapAuth() {
+      let tokenFromStorage = localStorage.getItem("authToken") || "";
+
+      if (!tokenFromStorage) {
+        try {
+          const fingerprint = await getDeviceFingerprint();
+          const deviceResponse = await fetch(`${apiBaseUrl}/device-auth/`, {
+            method: "GET",
+            credentials: "include",
+            headers: { "X-Device-Fingerprint": fingerprint },
+          });
+
+          if (deviceResponse.ok) {
+            const deviceData = await readJsonSafe(deviceResponse);
+            tokenFromStorage = deviceData?.token || "";
+            if (tokenFromStorage) {
+              localStorage.setItem("authToken", tokenFromStorage);
+            }
+          }
+        } catch {
+          // A missing remembered device or unavailable API falls back to login.
+        }
+      }
+
       try {
         await initializeCsrf();
       } catch {
@@ -331,8 +377,6 @@ function App() {
           "Unable to initialize CSRF. Check that the API server is running.",
         );
       }
-
-      const tokenFromStorage = localStorage.getItem("authToken") || "";
 
       if (tokenFromStorage) {
         setSavedToken(tokenFromStorage);
@@ -370,6 +414,8 @@ function App() {
           }
         }
       }
+
+      setAuthChecking(false);
     }
 
     bootstrapAuth();
@@ -464,11 +510,13 @@ function App() {
 
     try {
       const token = csrfToken || (await initializeCsrf());
+      const fingerprint = await getDeviceFingerprint();
 
       const response = await fetch(`${apiBaseUrl}/api-token-auth/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "X-Device-Fingerprint": fingerprint,
           ...(token ? { "X-CSRFToken": token } : {}),
         },
         credentials: "include",
@@ -506,6 +554,16 @@ function App() {
   }
 
   function clearToken() {
+    getDeviceFingerprint().then((fingerprint) =>
+      fetch(`${apiBaseUrl}/device-logout/`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
+          "X-Device-Fingerprint": fingerprint,
+        },
+      }).catch(() => {}),
+    );
     localStorage.removeItem("authToken");
     localStorage.removeItem(BEER_LIST_KEY);
     localStorage.removeItem(BEER_LIST_WITH_RATINGS_KEY);
@@ -519,6 +577,16 @@ function App() {
     localStorage.removeItem(USERS_LIST_KEY);
     setSavedToken("");
     setIsAuthenticated(false);
+  }
+
+  if (authChecking) {
+    return (
+      <main className="page">
+        <section className="login-card playful-card">
+          <p>Checking sign-in...</p>
+        </section>
+      </main>
+    );
   }
 
   return (

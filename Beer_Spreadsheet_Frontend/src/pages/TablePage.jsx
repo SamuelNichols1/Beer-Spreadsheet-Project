@@ -818,6 +818,10 @@ function TablePage({ onSignOut, beverage = "beer" }) {
     sessionability: 0,
     packaging: 0,
   });
+  const nameInputRef = useRef(null);
+  const producerInputRef = useRef(null);
+  const countryInputRef = useRef(null);
+  const styleInputRef = useRef(null);
 
   const users = useMemo(
     () =>
@@ -1412,6 +1416,37 @@ function TablePage({ onSignOut, beverage = "beer" }) {
     }));
   }
 
+  function dismissRateKeyboard() {
+    document.activeElement?.blur();
+    setActiveSearchInput(null);
+  }
+
+  function handleRateFieldKeyDown(event, field) {
+    if (event.key !== "Enter") return;
+
+    event.preventDefault();
+
+    const fields =
+      config.key === "wine"
+        ? ["name", "producer", "country", "style"]
+        : ["name", "producer", "style"];
+    const nextField = fields[fields.indexOf(field) + 1];
+    const nextInput = {
+      name: nameInputRef,
+      producer: producerInputRef,
+      country: countryInputRef,
+      style: styleInputRef,
+    }[nextField];
+
+    if (nextInput?.current) {
+      nextInput.current.focus();
+      setActiveSearchInput(nextField);
+      return;
+    }
+
+    dismissRateKeyboard();
+  }
+
   async function refreshBeverageCaches(token) {
     const headers = token ? { Authorization: `Token ${token}` } : {};
 
@@ -1541,6 +1576,8 @@ function TablePage({ onSignOut, beverage = "beer" }) {
         producerQuery: "",
         nameQuery: "",
         styleQuery: "",
+        countryQuery: "",
+        regionQuery: "",
         typeQuery: "",
         taste: 0,
         value: 0,
@@ -2020,9 +2057,11 @@ function TablePage({ onSignOut, beverage = "beer" }) {
           <div className="search-field">
             <input
               id="sheet-product-search"
+              ref={nameInputRef}
               type="text"
               placeholder={`Search ${config.label.toLowerCase()}`}
               value={ratingForm.nameQuery}
+              onKeyDown={(event) => handleRateFieldKeyDown(event, "name")}
               onFocus={() => setActiveSearchInput("name")}
               onBlur={() =>
                 setTimeout(
@@ -2064,7 +2103,7 @@ function TablePage({ onSignOut, beverage = "beer" }) {
                             updateRatingField("nameQuery", productName);
                           }
 
-                          setActiveSearchInput(null);
+                          dismissRateKeyboard();
                         }}
                       >
                         {productName}
@@ -2079,9 +2118,13 @@ function TablePage({ onSignOut, beverage = "beer" }) {
           <div className="search-field">
             <input
               id="sheet-producer-search"
+              ref={producerInputRef}
               type="text"
               placeholder={`Search ${config.bucketLabel.toLowerCase()}`}
               value={ratingForm.producerQuery}
+              onKeyDown={(event) =>
+                handleRateFieldKeyDown(event, "producer")
+              }
               onFocus={() => setActiveSearchInput("producer")}
               onBlur={() =>
                 setTimeout(
@@ -2129,9 +2172,13 @@ function TablePage({ onSignOut, beverage = "beer" }) {
               <div className="search-field">
                 <input
                   id="sheet-country"
+                  ref={countryInputRef}
                   type="text"
                   placeholder="Search country"
                   value={ratingForm.countryQuery}
+                  onKeyDown={(event) =>
+                    handleRateFieldKeyDown(event, "country")
+                  }
                   onFocus={() => setActiveSearchInput("country")}
                   onBlur={() =>
                     setTimeout(
@@ -2180,9 +2227,11 @@ function TablePage({ onSignOut, beverage = "beer" }) {
           <div className="search-field">
             <input
               id="sheet-style"
+              ref={styleInputRef}
               type="text"
               placeholder="Search style"
               value={ratingForm.styleQuery}
+              onKeyDown={(event) => handleRateFieldKeyDown(event, "style")}
               onFocus={() => setActiveSearchInput("style")}
               onBlur={() =>
                 setTimeout(

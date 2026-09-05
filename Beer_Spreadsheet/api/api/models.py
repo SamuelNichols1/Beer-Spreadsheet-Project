@@ -117,3 +117,14 @@ class UserProfile(models.Model):
     def __str__(self):
         return f"Profile for {self.user.username}"
 
+
+class RememberedDevice(models.Model):
+    user = models.ForeignKey("auth.User", on_delete=models.CASCADE, related_name="remembered_devices")
+    token_hash = models.CharField(max_length=64, unique=True)
+    fingerprint_hash = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Remembered device for {self.user.username}"
+

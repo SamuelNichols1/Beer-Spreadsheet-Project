@@ -1,12 +1,17 @@
+from django.conf import settings
+from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group, User
 from django.http import JsonResponse
 from django.db.models import Avg, FloatField, Prefetch, Q, Value
 from django.db.models.functions import Coalesce
 from django.middleware.csrf import get_token
-from api.api.models import Beer, BeerRating, BeerRatingSeen, Cider, CiderRating, CiderRatingSeen, UserProfile, Wine, WineRating, WineRatingSeen
+from api.api.models import Beer, BeerRating, BeerRatingSeen, Cider, CiderRating, CiderRatingSeen, RememberedDevice, UserProfile, Wine, WineRating, WineRatingSeen
 from api.api.tools import calculate_overall_beer_rating, calculate_overall_cider_rating, calculate_overall_wine_rating
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.authtoken.models import Token
+import hashlib
+import secrets
 import re
 from django.utils import timezone
 from datetime import timedelta
@@ -30,6 +35,108 @@ from api.api.serializers import (
 )
 
 logger = get_logger(__name__)
+
+REMEMBERED_DEVICE_COOKIE = "remembered_device"
+REMEMBERED_DEVICE_MAX_AGE = 10 * 365 * 24 * 60 * 60
+
+
+def hash_device_token(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def set_device_cookie(response, raw_token):
+    response.set_cookie(
+        REMEMBERED_DEVICE_COOKIE,
+        raw_token,
+        max_age=REMEMBERED_DEVICE_MAX_AGE,
+        httponly=True,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite="Lax",
+    )
+
+
+def get_fingerprint_hash(request):
+    fingerprint = request.headers.get("X-Device-Fingerprint", "").strip()
+    return hash_device_token(fingerprint) if fingerprint else None
+
+
+@api_view(["POST"])
+@permission_classes([permissions.AllowAny])
+def login(request):
+    user = authenticate(
+        request,
+        username=request.data.get("username", ""),
+        password=request.data.get("password", ""),
+    )
+    if user is None:
+        return JsonResponse({"detail": "Unable to log in with provided credentials."}, status=400)
+
+    token, _ = Token.objects.get_or_create(user=user)
+    raw_device_token = secrets.token_urlsafe(32)
+    fingerprint_hash = get_fingerprint_hash(request)
+    existing_device = None
+    if fingerprint_hash:
+        existing_device = RememberedDevice.objects.filter(
+            fingerprint_hash=fingerprint_hash,
+        ).first()
+        if existing_device and existing_device.user_id != user.id:
+            existing_device.delete()
+            fingerprint_hash = None
+
+    if existing_device and fingerprint_hash:
+        existing_device.token_hash = hash_device_token(raw_device_token)
+        existing_device.save(update_fields=["token_hash", "last_used_at"])
+    else:
+        RememberedDevice.objects.create(
+            user=user,
+            token_hash=hash_device_token(raw_device_token),
+            fingerprint_hash=fingerprint_hash,
+        )
+
+    response = JsonResponse({"token": token.key})
+    set_device_cookie(response, raw_device_token)
+    return response
+
+
+@api_view(["GET"])
+@permission_classes([permissions.AllowAny])
+def device_login(request):
+    raw_device_token = request.COOKIES.get(REMEMBERED_DEVICE_COOKIE)
+    if raw_device_token:
+        device = RememberedDevice.objects.select_related("user").filter(
+            token_hash=hash_device_token(raw_device_token),
+        ).first()
+    else:
+        fingerprint_hash = get_fingerprint_hash(request)
+        device = None
+        if fingerprint_hash:
+            device = RememberedDevice.objects.select_related("user").filter(
+                fingerprint_hash=fingerprint_hash,
+            ).first()
+
+    if device is None:
+        return JsonResponse({"detail": "Remembered device is not valid."}, status=401)
+
+    token, _ = Token.objects.get_or_create(user=device.user)
+    device.save(update_fields=["last_used_at"])
+    return JsonResponse({"token": token.key})
+
+
+@api_view(["POST"])
+@permission_classes([permissions.AllowAny])
+def device_logout(request):
+    raw_device_token = request.COOKIES.get(REMEMBERED_DEVICE_COOKIE)
+    if raw_device_token:
+        RememberedDevice.objects.filter(
+            token_hash=hash_device_token(raw_device_token),
+        ).delete()
+    fingerprint_hash = get_fingerprint_hash(request)
+    if fingerprint_hash:
+        RememberedDevice.objects.filter(fingerprint_hash=fingerprint_hash).delete()
+
+    response = JsonResponse({"detail": "Signed out."})
+    response.delete_cookie(REMEMBERED_DEVICE_COOKIE)
+    return response
 
 
 def capitalize_words(value):
