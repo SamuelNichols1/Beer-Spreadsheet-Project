@@ -467,7 +467,7 @@ button:disabled {
   padding-bottom: 14px;
 }
 
-.rating-sheet.collapsed .rating-sheet-form {
+.rating-sheet.collapsed .rating-sheet-form > *:not(.rating-sheet-handle) {
   opacity: 0;
   pointer-events: none;
   transform: translateY(10px);
